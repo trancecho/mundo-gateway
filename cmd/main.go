@@ -4,7 +4,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/trancecho/mundo-gateway/controller"
 	"github.com/trancecho/mundo-gateway/domain"
-	"github.com/trancecho/mundo-gateway/global"
 	"log"
 )
 
@@ -13,7 +12,8 @@ func init() {
 }
 
 func main() {
-	global.Gateway = domain.NewGateway()
+	domain.GatewayGlobal = domain.NewGateway()
+	log.Println(domain.GatewayGlobal)
 	r := gin.New()
 	r.Use(gin.Logger())
 	r.Use(gin.Recovery())

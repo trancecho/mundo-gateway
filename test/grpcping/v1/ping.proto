@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package test.grpcping.v1;
+
+// 定义请求消息
+message PingRequest {
+  string message = 1;
+}
+
+// 定义响应消息
+message PingResponse {
+  string message = 1;
+}
+
+// 定义 Ping 服务
+service PingService {
+  // 定义 Ping 方法
+  rpc Ping(PingRequest) returns (PingResponse);
+}
