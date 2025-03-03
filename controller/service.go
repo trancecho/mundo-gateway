@@ -32,8 +32,11 @@ func CreateServiceController(c *gin.Context) {
 		util.ClientErr(c, 2, "prefix不能为空")
 		return
 	}
+	if dto.Prefix == "gateway" {
+		util.ClientErr(c, 300, "prefix不能为gateway ")
+	}
 	if dto.Protocol == "" {
-		util.ClientErr(c, 3, "protocol不能为空")
+		util.ClientErr(c, 310, "protocol不能为空")
 		return
 	}
 	// 根据协议判断地址是否合规

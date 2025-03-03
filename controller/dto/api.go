@@ -1,9 +1,9 @@
 package dto
 
 type APICreateReq struct {
-	Name   string `json:"name"`
-	Path   string `json:"path"`
-	Method string `json:"method"`
+	ServiceName string `json:"service_name"`
+	Path        string `json:"path"`
+	Method      string `json:"method"`
 }
 
 type APIUpdateReq struct {

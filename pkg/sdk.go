@@ -3,6 +3,8 @@ package pkg
 import (
 	"encoding/json"
 	"fmt"
+
+	"github.com/go-resty/resty/v2"
 )
 
 // ConfigRegistrySDK 表示配置注册中心的 SDK

@@ -27,10 +27,11 @@ func CreateAPIService(dto *dto.APICreateReq) (*po.API, error) {
 	var apiPO po.API
 	var servicePO po.Service
 	db := GatewayGlobal.DB
-	servicePO.Name = dto.Name
+	servicePO.Name = dto.ServiceName
 
 	// 如果没有service直接返回
-	affected := db.Find(&servicePO).RowsAffected
+	affected := db.Where("name = ?", dto.ServiceName).
+		First(&servicePO).RowsAffected
 	if affected == 0 {
 		return nil, errors.New("服务不存在")
 	}
@@ -38,7 +39,8 @@ func CreateAPIService(dto *dto.APICreateReq) (*po.API, error) {
 	//如果有service，寻找api是否存在
 	apiPO.Path = dto.Path
 	apiPO.Method = dto.Method
-	affected = db.Find(&apiPO).RowsAffected
+	affected = db.Where("service_id = ? and path = ? and method = ?", servicePO.ID, dto.Path, dto.Method).
+		Find(&apiPO).RowsAffected
 	if affected > 0 {
 		return nil, errors.New("API已存在")
 	}

@@ -20,7 +20,7 @@ func Ok(c *gin.Context, message string, data gin.H) {
 
 // 规范：错误码提供三位，从000开始
 func ClientErr(c *gin.Context, errCode int, message string) {
-	log.Println("客户端错误", message)
+	log.Println("客户端错误", errCode, message)
 	c.JSON(400, gin.H{
 		"errCode": 400000 + errCode,
 		"message": message,
@@ -28,7 +28,7 @@ func ClientErr(c *gin.Context, errCode int, message string) {
 }
 
 func ServerError(c *gin.Context, errCode int, message string) {
-	log.Println("服务端错误", message)
+	log.Println("服务端错误", errCode, message)
 	c.JSON(500, gin.H{
 		"errCode": 500000 + errCode,
 		"message": message,

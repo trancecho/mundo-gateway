@@ -11,8 +11,8 @@ import (
 func CreateAPIController(c *gin.Context) {
 	var req dto.APICreateReq
 	c.BindJSON(&req)
-	if req.Name == "" {
-		util.ClientErr(c, 1, "name不能为空")
+	if req.ServiceName == "" {
+		util.ClientErr(c, 100, "name不能为空")
 		return
 	}
 	if req.Path == "" {
@@ -84,9 +84,9 @@ func DeleteAPIController(c *gin.Context) {
 func GetAPIController(c *gin.Context) {
 	var err error
 	var id int
-	id, err = strconv.Atoi(c.Param("id"))
+	id, err = strconv.Atoi(c.Query("id"))
 	if err != nil {
-		util.ServerError(c, 3, "id格式错误")
+		util.ServerError(c, 3, "api的id格式错误")
 		return
 	}
 	// 获取API
