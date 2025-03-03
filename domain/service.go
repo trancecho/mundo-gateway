@@ -1,10 +1,16 @@
 package domain
 
 import (
-	"github.com/trancecho/mundo-gateway/controller"
+	"github.com/trancecho/mundo-gateway/controller/dto"
 	"github.com/trancecho/mundo-gateway/po"
 	"log"
 )
+
+type APIBO struct {
+	APIPOId int64
+	Path    string
+	Method  string
+}
 
 // ServiceBO BO 业务对象
 type ServiceBO struct {
@@ -12,6 +18,7 @@ type ServiceBO struct {
 	Prefix      string
 	Name        string
 	Addresses   []string
+	APIs        []APIBO
 	Protocol    string
 	curAddress  int64
 }
@@ -33,7 +40,7 @@ func (s *ServiceBO) GetNextAddress() string {
 }
 
 // 创建服务
-func CreateServiceService(dto *controller.ServiceCreateReq) (*po.Service, bool) {
+func CreateServiceService(dto *dto.ServiceCreateReq) (*po.Service, bool) {
 	var err error
 	var servicePO po.Service
 	servicePO.Name = dto.Name
@@ -54,6 +61,7 @@ func CreateServiceService(dto *controller.ServiceCreateReq) (*po.Service, bool) 
 		// 说明没有service，需要新建
 		servicePO.Prefix = dto.Prefix
 		servicePO.Protocol = dto.Protocol
+		servicePO.Addresses = []po.Address{{Address: dto.Address}}
 		// 创建service
 		err = GatewayGlobal.DB.Create(&servicePO).Error
 		if err != nil {
@@ -65,7 +73,7 @@ func CreateServiceService(dto *controller.ServiceCreateReq) (*po.Service, bool) 
 }
 
 // 更新服务
-func UpdateServiceService(dto *controller.ServiceUpdateReq) (*po.Service, bool) {
+func UpdateServiceService(dto *dto.ServiceUpdateReq) (*po.Service, bool) {
 	var err error
 	var servicePO po.Service
 	servicePO.ID = dto.Id

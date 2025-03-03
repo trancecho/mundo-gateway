@@ -2,26 +2,14 @@ package controller
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/trancecho/mundo-gateway/controller/dto"
 	"github.com/trancecho/mundo-gateway/domain"
 	"github.com/trancecho/mundo-gateway/util"
 	"strconv"
 )
 
-type APICreateReq struct {
-	Name   string `json:"name"`
-	Path   string `json:"path"`
-	Method string `json:"method"`
-}
-
-type APIUpdateReq struct {
-	Id     int64  `json:"id"`
-	Name   string `json:"name"`
-	Path   string `json:"path"`
-	Method string `json:"method"`
-}
-
 func CreateAPIController(c *gin.Context) {
-	var req APICreateReq
+	var req dto.APICreateReq
 	c.BindJSON(&req)
 	if req.Name == "" {
 		util.ClientErr(c, 1, "name不能为空")
@@ -48,7 +36,7 @@ func CreateAPIController(c *gin.Context) {
 }
 
 func UpdateAPIController(c *gin.Context) {
-	var req APIUpdateReq
+	var req dto.APIUpdateReq
 	c.BindJSON(&req)
 	if req.Id == 0 {
 		util.ClientErr(c, 1, "id不能为空")
@@ -78,17 +66,16 @@ func UpdateAPIController(c *gin.Context) {
 }
 
 func DeleteAPIController(c *gin.Context) {
-	var err error
-	var id int
-	id, err = strconv.Atoi(c.Param("id"))
-	if err != nil {
-		util.ServerError(c, 3, "id格式错误")
+	var req dto.APIDeleteReq
+	c.BindJSON(&req)
+	if req.Id == 0 {
+		util.ClientErr(c, 1, "id不能为空")
 		return
 	}
 	// 删除API
-	err = domain.DeleteAPIService(int64(id))
+	err := domain.DeleteAPIService(req.Id)
 	if err != nil {
-		util.ServerError(c, 4, "API删除失败")
+		util.ServerError(c, 2, "API删除失败")
 		return
 	}
 	util.Ok(c, "API删除成功", nil)

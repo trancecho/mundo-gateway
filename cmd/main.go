@@ -3,7 +3,6 @@ package main
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/trancecho/mundo-gateway/controller"
-	"github.com/trancecho/mundo-gateway/domain"
 	"log"
 )
 
@@ -12,12 +11,13 @@ func init() {
 }
 
 func main() {
-	domain.GatewayGlobal = domain.NewGateway()
-	log.Println(domain.GatewayGlobal)
+	controller.InitGateway()
 	r := gin.New()
 	r.Use(gin.Logger())
 	r.Use(gin.Recovery())
-	r.Any("/*path", controller.HandleRequestController)
+
+	MakeRoutes(r)
+
 	// 启动服务器
 	log.Fatal(r.Run(":12388"))
 }

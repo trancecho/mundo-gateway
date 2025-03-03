@@ -5,6 +5,7 @@ import (
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"log"
+	"net"
 	"sync"
 )
 
@@ -16,6 +17,7 @@ type Gateway struct {
 	globalKV sync.Map //可以先忽略
 	//读写锁
 	sync.RWMutex
+	Connections map[string]net.Conn // 存储所有连接
 }
 
 // NewGateway 创建一个全局网关shili
@@ -61,16 +63,31 @@ func NewGateway() *Gateway {
 			curAddress:  0,
 		})
 	}
+
+	// 建立所有地址的连接
+	connections := make(map[string]net.Conn)
+	for _, service := range serviceBOs {
+		for _, address := range service.Addresses {
+			conn, err := net.Dial("tcp", address)
+			if err != nil {
+				log.Printf("网关连接池初始化无法连接到地址 %s: %v", address, err)
+				continue
+			}
+			connections[address] = conn
+		}
+	}
 	// 网关实例。repo先建立初始化，服务数据预发现
 	return &Gateway{
-		DB:       db,
-		Services: serviceBOs,
-		Prefixes: prefixes}
+		DB:          db,
+		Services:    serviceBOs,
+		Prefixes:    prefixes,
+		Connections: connections,
+	}
 }
 
 // FlushGateway 重新获取service列表
 func (g *Gateway) FlushGateway() {
-
+	// todo 可以优化
 	// 重新获取service列表
 	var servicesPO []po.Service
 	g.DB.Find(&servicesPO)
@@ -96,10 +113,25 @@ func (g *Gateway) FlushGateway() {
 	for _, service := range servicesPO {
 		prefixes = append(prefixes, Prefix{Name: service.Prefix, ServiceId: service.ID})
 	}
+
+	// 建立新的连接
+	connections := make(map[string]net.Conn)
+	for _, service := range serviceBOs {
+		for _, address := range service.Addresses {
+			conn, err := net.Dial("tcp", address)
+			if err != nil {
+				log.Printf("Failed to connect to %s: %v", address, err)
+				continue
+			}
+			connections[address] = conn
+		}
+	}
+
 	// 更新全局网关
 	// 写操作一起处理
 	g.RWMutex.Lock()
 	defer g.RWMutex.Unlock()
 	g.Services = serviceBOs
 	g.Prefixes = prefixes
+	g.Connections = connections
 }

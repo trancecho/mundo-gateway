@@ -9,11 +9,10 @@ import (
 )
 
 func HTTPProxyHandler(c *gin.Context, err error, address string) {
-	//现在有了地址
 	// 手动实现http代理请求
+	// 构造代理请求，输入参数为：方法、地址、请求体
 	proxyReq, err := http.NewRequest(c.Request.Method, address+c.Request.URL.Path, c.Request.Body)
 	if err != nil {
-		log.Println("请求创建失败:", err)
 		util.ServerError(c, 2, "创建请求失败")
 		return
 	}
@@ -29,8 +28,7 @@ func HTTPProxyHandler(c *gin.Context, err error, address string) {
 	client := &http.Client{}
 	resp, err := client.Do(proxyReq)
 	if err != nil {
-		log.Println("发送代理请求失败:", err)
-		util.ServerError(c, 2, "代理请求失败")
+		util.ServerError(c, 3, "代理请求失败")
 		return
 	}
 	defer resp.Body.Close()
@@ -48,12 +46,10 @@ func HTTPProxyHandler(c *gin.Context, err error, address string) {
 	// 将响应体转发到客户端
 	_, err = io.Copy(c.Writer, resp.Body)
 	if err != nil {
-		log.Println("转发响应体失败:", err)
-		util.ServerError(c, 2, "转发响应体失败")
+		util.ServerError(c, 4, "转发响应体失败")
 		return
 	}
 
 	// todo 日志记录：成功完成代理请求
-	//todo需要自动加前缀http://
-	log.Println("成功代理请求", c.Request.URL.Path, "到", address)
+	log.Println("成功代理请求", c.Request.URL, "到", address+c.Request.URL.Path)
 }

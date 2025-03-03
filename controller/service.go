@@ -2,25 +2,11 @@ package controller
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/trancecho/mundo-gateway/controller/dto"
 	"github.com/trancecho/mundo-gateway/domain"
 	"github.com/trancecho/mundo-gateway/util"
 	"strconv"
 )
-
-type ServiceCreateReq struct {
-	Name     string `json:"name"`
-	Prefix   string `json:"prefix"`
-	Protocol string `json:"protocol"`
-	Address  string `json:"address"`
-}
-
-type ServiceUpdateReq struct {
-	Id       int64  `json:"id"`
-	Name     string `json:"name"`
-	Prefix   string `json:"prefix"`
-	Protocol string `json:"protocol"`
-	Address  string `json:"address"`
-}
 
 //type ServiceDTO struct {
 //	Name      string `json:"name"`
@@ -36,7 +22,7 @@ type ServiceUpdateReq struct {
 //}
 
 func CreateServiceController(c *gin.Context) {
-	var dto ServiceCreateReq
+	var dto dto.ServiceCreateReq
 	c.ShouldBindJSON(&dto)
 	if dto.Name == "" {
 		util.ClientErr(c, 1, "name不能为空")
@@ -62,28 +48,43 @@ func CreateServiceController(c *gin.Context) {
 }
 
 func UpdateServiceController(c *gin.Context) {
-	var dto ServiceUpdateReq
+	var dto dto.ServiceUpdateReq
 	c.ShouldBindJSON(&dto)
 	if dto.Id == 0 {
-		util.ServerError(c, 1, "id不能为空")
+		util.ServerError(c, 100, "id不能为空")
 		return
 	}
 	if dto.Name == "" {
-		util.ServerError(c, 2, "name不能为空")
+		util.ServerError(c, 200, "name不能为空")
 		return
 	}
 	if dto.Prefix == "" {
-		util.ServerError(c, 3, "prefix不能为空")
+		util.ServerError(c, 300, "prefix不能为空")
 		return
 	}
 	if dto.Protocol == "" {
-		util.ServerError(c, 4, "protocol不能为空")
+		util.ServerError(c, 400, "protocol不能为空")
+		return
+	}
+	// 根据协议判断地址是否合规
+	if dto.Protocol == "http" {
+		if dto.Address[:7] != "http://" || dto.Address[:8] != "https://" {
+			util.ServerError(c, 500, "http协议地址不能为空")
+			return
+		}
+	} else if dto.Protocol == "grpc" {
+		if dto.Address[:6] != "grpc://" {
+			util.ServerError(c, 600, "grpc协议地址不能为空")
+			return
+		}
+	} else {
+		util.ServerError(c, 700, "协议不合规")
 		return
 	}
 
 	servicePO, ok := domain.UpdateServiceService(&dto)
 	if !ok {
-		util.ServerError(c, 5, "服务更新失败")
+		util.ServerError(c, 800, "服务更新失败")
 		return
 	}
 	util.Ok(c, "服务更新成功", gin.H{

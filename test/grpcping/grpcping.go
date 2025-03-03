@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/gin-gonic/gin"
 	"log"
 	"net"
 
@@ -31,7 +32,16 @@ func main() {
 	pb.RegisterPingServiceServer(s, &PingServer{})
 	log.Printf("server listening at %v", lis.Addr())
 	// 启动服务器
-	if err := s.Serve(lis); err != nil {
-		log.Fatalf("failed to serve: %v", err)
-	}
+	go func() {
+		if err := s.Serve(lis); err != nil {
+			log.Fatalf("failed to serve: %v", err)
+		}
+	}()
+	r := gin.New()
+	r.GET("/ping", func(c *gin.Context) {
+		c.JSON(200, gin.H{
+			"message": "pong",
+		})
+	})
+	log.Fatal(r.Run(":12389"))
 }

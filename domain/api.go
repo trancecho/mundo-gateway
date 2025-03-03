@@ -2,7 +2,7 @@ package domain
 
 import (
 	"errors"
-	"github.com/trancecho/mundo-gateway/controller"
+	"github.com/trancecho/mundo-gateway/controller/dto"
 	"github.com/trancecho/mundo-gateway/po"
 )
 
@@ -22,7 +22,7 @@ func NewAPI(id int64, serviceId int64, path string, method string) *API {
 	}
 }
 
-func CreateAPIService(dto *controller.APICreateReq) (*po.API, error) {
+func CreateAPIService(dto *dto.APICreateReq) (*po.API, error) {
 	var err error
 	var apiPO po.API
 	var servicePO po.Service
@@ -65,7 +65,7 @@ func GetAPIService(id int64) (*po.API, error) {
 }
 
 // UpdateAPIService 更新API
-func UpdateAPIService(dto *controller.APIUpdateReq) (*po.API, error) {
+func UpdateAPIService(dto *dto.APIUpdateReq) (*po.API, error) {
 	var err error
 	var apiPO po.API
 	db := GatewayGlobal.DB
