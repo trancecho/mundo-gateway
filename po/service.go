@@ -9,12 +9,12 @@ type RequestLog struct {
 }
 type Service struct {
 	BaseModel
-	Name      string
-	Prefix    string
-	Protocol  string
-	APIs      []API     `gorm:"foreignKey:ServiceId"`
-	GrpcAPIs  []GrpcAPI `gorm:"foreignKey:ServiceId"`
-	Addresses []Address `gorm:"foreignKey:ServiceId"`
+	Name      string    `json:"name"`
+	Prefix    string    `json:"prefix"`
+	Protocol  string    `json:"protocol"`
+	APIs      []API     `gorm:"foreignKey:ServiceId" json:"APIs"`
+	GrpcAPIs  []GrpcAPI `gorm:"foreignKey:ServiceId" json:"grpc_apis"`
+	Addresses []Address `gorm:"foreignKey:ServiceId" json:"addresses"`
 }
 
 //type Prefix struct {
@@ -25,8 +25,8 @@ type Service struct {
 
 type Address struct {
 	BaseModel
-	ServiceId int64
-	Address   string
+	ServiceId int64  `json:"service_id"`
+	Address   string `json:"address"`
 }
 
 type API struct {
@@ -37,9 +37,9 @@ type API struct {
 }
 type GrpcAPI struct {
 	BaseModel
-	ServiceId    int64
-	RequestType  string // 请求类型 example.GetUserRequest
-	ResponseType string // 响应类型 example.UserResponse
-	GrpcMethod   string // gRPC方法名 GetUser
-	GrpcService  string // gRPC服务名 user.UserService
+	ServiceId    int64  `json:"service_id"`
+	RequestType  string `json:"request_type"`  // 请求类型 example.GetUserRequest
+	ResponseType string `json:"response_type"` // 响应类型 example.UserResponse
+	GrpcMethod   string `json:"grpc_method"`   // gRPC方法名 GetUser
+	GrpcService  string `json:"grpc_service"`  // gRPC服务名 user.UserService
 }

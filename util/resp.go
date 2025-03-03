@@ -8,6 +8,9 @@ import (
 )
 
 func Ok(c *gin.Context, message string, data gin.H) {
+	if data == nil {
+		data = gin.H{}
+	}
 	c.JSON(200, gin.H{
 		"errCode": 20000,
 		"message": message,

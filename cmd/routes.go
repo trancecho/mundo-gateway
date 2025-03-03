@@ -13,6 +13,7 @@ func MakeRoutes(r *gin.Engine) {
 	r.POST("/gateway/service", controller.CreateServiceController)
 	r.PUT("/gateway/service", controller.UpdateServiceController)
 	r.DELETE("/gateway/service", controller.DeleteServiceController)
+	r.DELETE("/gateway/service/address", controller.DeleteServiceAddressController)
 	r.GET("/gateway/service", controller.GetServiceController)
 	r.GET("/gateway/service/list", controller.ListServiceController)
 

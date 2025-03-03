@@ -12,5 +12,8 @@ type ServiceUpdateReq struct {
 	Name     string `json:"name"`
 	Prefix   string `json:"prefix"`
 	Protocol string `json:"protocol"`
-	Address  string `json:"address"`
+}
+
+type AddressDeleteReq struct {
+	Id int64 `json:"id"`
 }

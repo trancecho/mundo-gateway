@@ -36,36 +36,6 @@ func CreateServiceController(c *gin.Context) {
 		util.ClientErr(c, 3, "protocol不能为空")
 		return
 	}
-
-	servicePO, ok := domain.CreateServiceService(&dto)
-	if !ok {
-		util.ServerError(c, 4, "服务创建失败")
-		return
-	}
-	util.Ok(c, "服务创建成功", gin.H{
-		"service": servicePO,
-	})
-}
-
-func UpdateServiceController(c *gin.Context) {
-	var dto dto.ServiceUpdateReq
-	c.ShouldBindJSON(&dto)
-	if dto.Id == 0 {
-		util.ServerError(c, 100, "id不能为空")
-		return
-	}
-	if dto.Name == "" {
-		util.ServerError(c, 200, "name不能为空")
-		return
-	}
-	if dto.Prefix == "" {
-		util.ServerError(c, 300, "prefix不能为空")
-		return
-	}
-	if dto.Protocol == "" {
-		util.ServerError(c, 400, "protocol不能为空")
-		return
-	}
 	// 根据协议判断地址是否合规
 	if dto.Protocol == "http" {
 		if dto.Address[:7] != "http://" || dto.Address[:8] != "https://" {
@@ -82,7 +52,29 @@ func UpdateServiceController(c *gin.Context) {
 		return
 	}
 
-	servicePO, ok := domain.UpdateServiceService(&dto)
+	servicePO, ok := domain.CreateServiceService(&dto)
+	if !ok {
+		util.ServerError(c, 4, "服务创建失败")
+		return
+	}
+	util.Ok(c, "服务创建成功", gin.H{
+		"service": servicePO,
+	})
+}
+
+func UpdateServiceController(c *gin.Context) {
+	var req dto.ServiceUpdateReq
+	c.ShouldBindJSON(&req)
+	if req.Id == 0 {
+		util.ServerError(c, 100, "id不能为空")
+		return
+	}
+	if req.Name == "" && req.Prefix == "" && req.Protocol == "" {
+		util.ServerError(c, 200, "name、prefix、protocol不能同时为空")
+		return
+	}
+
+	servicePO, ok := domain.UpdateServiceService(&req)
 	if !ok {
 		util.ServerError(c, 800, "服务更新失败")
 		return
@@ -95,7 +87,7 @@ func UpdateServiceController(c *gin.Context) {
 func DeleteServiceController(c *gin.Context) {
 	var err error
 	var id int
-	id, err = strconv.Atoi(c.Param("id"))
+	id, err = strconv.Atoi(c.Query("id"))
 	if err != nil {
 		util.ServerError(c, 3, "id格式错误")
 		return
@@ -113,6 +105,27 @@ func DeleteServiceController(c *gin.Context) {
 	util.Ok(c, "服务删除成功", nil)
 }
 
+func DeleteServiceAddressController(c *gin.Context) {
+	var err error
+	var id int
+	id, err = strconv.Atoi(c.Query("id"))
+	if err != nil {
+		util.ServerError(c, 3, "id格式错误")
+		return
+	}
+	idInt64 := int64(id)
+	if id == 0 {
+		util.ServerError(c, 1, "id不能为空")
+		return
+	}
+	ok := domain.DeleteAddressService(idInt64)
+	if !ok {
+		util.ServerError(c, 2, "服务地址删除失败")
+		return
+	}
+	util.Ok(c, "服务地址删除成功", nil)
+}
+
 func ListServiceController(c *gin.Context) {
 	services, ok := domain.ListServicesService()
 	if !ok {
@@ -126,7 +139,7 @@ func ListServiceController(c *gin.Context) {
 }
 
 func GetServiceController(c *gin.Context) {
-	idStr := c.Param("id")
+	idStr := c.Query("id")
 	if idStr == "" {
 		util.ServerError(c, 1, "id不能为空")
 		return
