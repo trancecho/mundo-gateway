@@ -6,6 +6,7 @@ import (
 	"github.com/trancecho/mundo-gateway/domain"
 	"github.com/trancecho/mundo-gateway/util"
 	"strconv"
+	"strings"
 )
 
 //type ServiceDTO struct {
@@ -37,8 +38,9 @@ func CreateServiceController(c *gin.Context) {
 		return
 	}
 	// 根据协议判断地址是否合规
-	if dto.Protocol == "http" {
-		if dto.Address[:7] != "http://" || dto.Address[:8] != "https://" {
+	if dto.Protocol == "http" || dto.Protocol == "https" {
+		// 检查地址是否以 http:// 或 https:// 开头
+		if !strings.HasPrefix(dto.Address, "http://") && !strings.HasPrefix(dto.Address, "https://") {
 			util.ServerError(c, 500, "http协议地址不能为空")
 			return
 		}
