@@ -8,7 +8,7 @@ import (
 	"net/http"
 )
 
-func HTTPProxyHandler(c *gin.Context, err error, address string) {
+func HTTPProxyHandler(c *gin.Context, err error, address string, serviceName string) {
 	// 手动实现http代理请求
 	// 构造代理请求，输入参数为：方法、地址、请求体
 	proxyReq, err := http.NewRequest(c.Request.Method, address+c.Request.URL.Path, c.Request.Body)
@@ -28,7 +28,7 @@ func HTTPProxyHandler(c *gin.Context, err error, address string) {
 	client := &http.Client{}
 	resp, err := client.Do(proxyReq)
 	if err != nil {
-		util.ServerError(c, 3, "代理请求失败")
+		util.ServerError(c, 3, "代理请求失败。访问服务名称："+serviceName)
 		return
 	}
 	defer resp.Body.Close()

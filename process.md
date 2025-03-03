@@ -2,11 +2,12 @@
 现在已经完成：
 1.gateway的初始化。service和api的注册。
 3.注册serviec和api的路由
+2.跑通pingdemo http转发方式(
+4.连接池(使用client)
 
 正在进行：
 1.grpc和http转发。
-2.跑通pingdemo两种转发方式
-4.连接池
+2.跑通pingdemo grpc转发方式( 
 5.上线http转发
 
 未来计划：

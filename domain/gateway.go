@@ -1,12 +1,14 @@
 package domain
 
 import (
+	"log"
+	"net/http"
+	"sync"
+	"time"
+
 	"github.com/trancecho/mundo-gateway/po"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
-	"log"
-	"net"
-	"sync"
 )
 
 // GatewayGlobal 第一个功能，代理路由
@@ -17,7 +19,7 @@ type Gateway struct {
 	globalKV sync.Map //可以先忽略
 	//读写锁
 	sync.RWMutex
-	Connections map[string]net.Conn // 存储所有连接
+	HTTPClient *http.Client //http客户端
 }
 
 // NewGateway 创建一个全局网关shili
@@ -40,7 +42,9 @@ func NewGateway() *Gateway {
 
 	// c初始化service列表
 	var services []po.Service
-	db.Find(&services)
+	db.Preload("Addresses").Preload("APIs").
+		Find(&services)
+	log.Println("services:", services)
 	var prefixes []Prefix
 	//在services中找到所有的prefix
 	for _, service := range services {
@@ -54,6 +58,17 @@ func NewGateway() *Gateway {
 		for _, address := range service.Addresses {
 			addresses = append(addresses, address.Address)
 		}
+
+		// 转换 APIs
+		var apis []APIBO
+		for _, api := range service.APIs {
+			apis = append(apis, APIBO{
+				APIPOId: api.ID,
+				Path:    api.Path,
+				Method:  api.Method,
+			})
+		}
+
 		serviceBOs = append(serviceBOs, ServiceBO{
 			ServicePOId: service.ID,
 			Prefix:      service.Prefix,
@@ -61,27 +76,25 @@ func NewGateway() *Gateway {
 			Addresses:   addresses,
 			Protocol:    service.Protocol,
 			curAddress:  0,
+			APIs:        apis, // 添加 APIs
 		})
 	}
 
-	// 建立所有地址的连接
-	connections := make(map[string]net.Conn)
-	for _, service := range serviceBOs {
-		for _, address := range service.Addresses {
-			conn, err := net.Dial("tcp", address)
-			if err != nil {
-				log.Printf("网关连接池初始化无法连接到地址 %s: %v", address, err)
-				continue
-			}
-			connections[address] = conn
-		}
+	// 初始化 HTTP 客户端
+	httpClient := &http.Client{
+		Transport: &http.Transport{
+			MaxIdleConns:        100,
+			MaxIdleConnsPerHost: 10,
+			IdleConnTimeout:     30 * time.Second,
+		},
+		Timeout: 10 * time.Second,
 	}
-	// 网关实例。repo先建立初始化，服务数据预发现
+
 	return &Gateway{
-		DB:          db,
-		Services:    serviceBOs,
-		Prefixes:    prefixes,
-		Connections: connections,
+		DB:         db,
+		Services:   serviceBOs,
+		Prefixes:   prefixes,
+		HTTPClient: httpClient,
 	}
 }
 
@@ -90,7 +103,8 @@ func (g *Gateway) FlushGateway() {
 	// todo 可以优化
 	// 重新获取service列表
 	var servicesPO []po.Service
-	g.DB.Find(&servicesPO)
+	g.DB.Preload("Addresses").Preload("APIs").
+		Find(&servicesPO)
 	// 初始化全局services列表
 	var serviceBOs []ServiceBO
 	for _, service := range servicesPO {
@@ -98,6 +112,17 @@ func (g *Gateway) FlushGateway() {
 		for _, address := range service.Addresses {
 			addresses = append(addresses, address.Address)
 		}
+
+		// 转换 APIs
+		var apis []APIBO
+		for _, api := range service.APIs {
+			apis = append(apis, APIBO{
+				APIPOId: api.ID,
+				Path:    api.Path,
+				Method:  api.Method,
+			})
+		}
+
 		serviceBOs = append(serviceBOs, ServiceBO{
 			ServicePOId: service.ID,
 			Prefix:      service.Prefix,
@@ -105,6 +130,7 @@ func (g *Gateway) FlushGateway() {
 			Addresses:   addresses,
 			Protocol:    service.Protocol,
 			curAddress:  0,
+			APIs:        apis,
 		})
 	}
 
@@ -114,24 +140,9 @@ func (g *Gateway) FlushGateway() {
 		prefixes = append(prefixes, Prefix{Name: service.Prefix, ServiceId: service.ID})
 	}
 
-	// 建立新的连接
-	connections := make(map[string]net.Conn)
-	for _, service := range serviceBOs {
-		for _, address := range service.Addresses {
-			conn, err := net.Dial("tcp", address)
-			if err != nil {
-				log.Printf("Failed to connect to %s: %v", address, err)
-				continue
-			}
-			connections[address] = conn
-		}
-	}
-
 	// 更新全局网关
-	// 写操作一起处理
 	g.RWMutex.Lock()
 	defer g.RWMutex.Unlock()
 	g.Services = serviceBOs
 	g.Prefixes = prefixes
-	g.Connections = connections
 }

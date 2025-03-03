@@ -2,12 +2,13 @@ package controller
 
 import (
 	"fmt"
-	"github.com/gin-gonic/gin"
-	"github.com/trancecho/mundo-gateway/domain"
-	"github.com/trancecho/mundo-gateway/util"
 	"log"
 	"net/http/httputil"
 	"net/url"
+
+	"github.com/gin-gonic/gin"
+	"github.com/trancecho/mundo-gateway/domain"
+	"github.com/trancecho/mundo-gateway/util"
 )
 
 // 创建反向代理
@@ -39,8 +40,8 @@ func HandleRequestController(c *gin.Context) {
 			break
 		}
 	}
-
-	fmt.Println("访问路由：", "path:", path, "method:", method, "prefix:", prefix)
+	c.Request.URL.Path = path
+	fmt.Println("访问路由：", "c.Request.URL.Path:", c.Request.URL.Path, "method:", method, "prefix:", prefix)
 	// 尝试直接从缓存拿服务
 	//var servicePO po.Service
 	// 找到可用服务地址
@@ -53,6 +54,7 @@ func HandleRequestController(c *gin.Context) {
 	//log.Println("servicePO", servicePO)
 
 	var serviceBO domain.ServiceBO
+	log.Println("services", domain.GatewayGlobal.Services)
 	for _, bo := range domain.GatewayGlobal.Services {
 		// 一个prefix只存在一个服务
 		if bo.Prefix == prefix {
@@ -63,11 +65,13 @@ func HandleRequestController(c *gin.Context) {
 	var apiBO *domain.APIBO
 	// 寻找服务方法和路由都匹配的API，如果没有就拦截
 	for _, api := range serviceBO.APIs {
+		log.Println("api", api, "method", method, "path", path)
 		if api.Method == method && api.Path == path {
 			apiBO = &api
 			break
 		}
 	}
+	//log.Println(serviceBO)
 	if apiBO == nil {
 		util.ClientErr(c, 3, "未找到API记录")
 		return
@@ -79,7 +83,7 @@ func HandleRequestController(c *gin.Context) {
 	log.Println("address", address)
 	switch serviceBO.Protocol {
 	case "http":
-		domain.HTTPProxyHandler(c, err, address)
+		domain.HTTPProxyHandler(c, err, address, serviceBO.Name)
 	case "grpc":
 		//domain.GRPCProxyHandler(c, err, address)
 	default:

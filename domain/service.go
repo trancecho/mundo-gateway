@@ -49,6 +49,7 @@ func CreateServiceService(dto *dto.ServiceCreateReq) (*po.Service, bool) {
 		Find(&servicePO).RowsAffected
 	log.Println(dto)
 	log.Println("affected", affected, servicePO)
+	// 如果 name 已经存在，说明是更新地址。
 	if affected > 0 {
 		// 找其地址列表
 		var addresses []po.Address

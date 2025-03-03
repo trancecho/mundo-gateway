@@ -30,6 +30,8 @@ func CreateAPIController(c *gin.Context) {
 		util.ServerError(c, 4, "API创建失败")
 		return
 	}
+	domain.GatewayGlobal.FlushGateway()
+
 	util.Ok(c, "API创建成功", gin.H{
 		"api": apiPO,
 	})
@@ -60,6 +62,8 @@ func UpdateAPIController(c *gin.Context) {
 		util.ServerError(c, 5, "API更新失败")
 		return
 	}
+	domain.GatewayGlobal.FlushGateway()
+
 	util.Ok(c, "API更新成功", gin.H{
 		"api": apiPO,
 	})
@@ -78,6 +82,8 @@ func DeleteAPIController(c *gin.Context) {
 		util.ServerError(c, 2, "API删除失败")
 		return
 	}
+	domain.GatewayGlobal.FlushGateway()
+
 	util.Ok(c, "API删除成功", nil)
 }
 
@@ -95,6 +101,7 @@ func GetAPIController(c *gin.Context) {
 		util.ServerError(c, 4, "API获取失败")
 		return
 	}
+	
 	util.Ok(c, "API获取成功", gin.H{
 		"api": apiPO,
 	})

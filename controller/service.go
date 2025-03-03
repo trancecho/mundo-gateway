@@ -23,32 +23,32 @@ import (
 //}
 
 func CreateServiceController(c *gin.Context) {
-	var dto dto.ServiceCreateReq
-	c.ShouldBindJSON(&dto)
-	if dto.Name == "" {
+	var req dto.ServiceCreateReq
+	c.ShouldBindJSON(&req)
+	if req.Name == "" {
 		util.ClientErr(c, 1, "name不能为空")
 		return
 	}
-	if dto.Prefix == "" {
+	if req.Prefix == "" {
 		util.ClientErr(c, 2, "prefix不能为空")
 		return
 	}
-	if dto.Prefix == "gateway" {
+	if req.Prefix == "gateway" {
 		util.ClientErr(c, 300, "prefix不能为gateway ")
 	}
-	if dto.Protocol == "" {
+	if req.Protocol == "" {
 		util.ClientErr(c, 310, "protocol不能为空")
 		return
 	}
-	// 根据协议判断地址是否合规
-	if dto.Protocol == "http" || dto.Protocol == "https" {
+	// 根据协议判断地址是否合规 目前只有http和grpc
+	if req.Protocol == "http" {
 		// 检查地址是否以 http:// 或 https:// 开头
-		if !strings.HasPrefix(dto.Address, "http://") && !strings.HasPrefix(dto.Address, "https://") {
+		if !strings.HasPrefix(req.Address, "http://") && !strings.HasPrefix(req.Address, "https://") {
 			util.ServerError(c, 500, "http协议地址不能为空")
 			return
 		}
-	} else if dto.Protocol == "grpc" {
-		if dto.Address[:6] != "grpc://" {
+	} else if req.Protocol == "grpc" {
+		if req.Address[:6] != "grpc://" {
 			util.ServerError(c, 600, "grpc协议地址不能为空")
 			return
 		}
@@ -57,11 +57,12 @@ func CreateServiceController(c *gin.Context) {
 		return
 	}
 
-	servicePO, ok := domain.CreateServiceService(&dto)
+	servicePO, ok := domain.CreateServiceService(&req)
 	if !ok {
 		util.ServerError(c, 4, "服务创建失败")
 		return
 	}
+	domain.GatewayGlobal.FlushGateway()
 	util.Ok(c, "服务创建成功", gin.H{
 		"service": servicePO,
 	})
@@ -84,6 +85,8 @@ func UpdateServiceController(c *gin.Context) {
 		util.ServerError(c, 800, "服务更新失败")
 		return
 	}
+	domain.GatewayGlobal.FlushGateway()
+
 	util.Ok(c, "服务更新成功", gin.H{
 		"service": servicePO,
 	})
@@ -107,6 +110,8 @@ func DeleteServiceController(c *gin.Context) {
 		util.ServerError(c, 2, "服务删除失败")
 		return
 	}
+	domain.GatewayGlobal.FlushGateway()
+
 	util.Ok(c, "服务删除成功", nil)
 }
 
@@ -128,6 +133,8 @@ func DeleteServiceAddressController(c *gin.Context) {
 		util.ServerError(c, 2, "服务地址删除失败")
 		return
 	}
+	domain.GatewayGlobal.FlushGateway()
+
 	util.Ok(c, "服务地址删除成功", nil)
 }
 
