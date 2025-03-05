@@ -41,7 +41,7 @@ func HandleRequestController(c *gin.Context) {
 		}
 	}
 	c.Request.URL.Path = path
-	fmt.Println("访问路由：", "c.Request.URL.Path:", c.Request.URL.Path, "method:", method, "prefix:", prefix)
+	fmt.Println("访问路由：", "c.Request.URL.HttpPath:", c.Request.URL.Path, "method:", method, "prefix:", prefix)
 	// 尝试直接从缓存拿服务
 	//var servicePO po.Service
 	// 找到可用服务地址
@@ -63,17 +63,19 @@ func HandleRequestController(c *gin.Context) {
 		}
 	}
 	var apiBO *domain.APIBO
-	// 寻找服务方法和路由都匹配的API，如果没有就拦截
+	// 寻找服务方法和路由都匹配的API，如果没有就拦截(默认grpc服务也有http路由，apibo是http2grpc的映射)
 	for _, api := range serviceBO.APIs {
 		log.Println("api", api, "method", method, "path", path)
-		if api.Method == method && api.Path == path {
+		if api.HttpMethod == method && api.HttpPath == path {
 			apiBO = &api
 			break
 		}
+
 	}
+
 	//log.Println(serviceBO)
 	if apiBO == nil {
-		util.ClientErr(c, 3, "未找到API记录")
+		util.ClientError(c, 3, "未找到API记录")
 		return
 	}
 
@@ -85,7 +87,7 @@ func HandleRequestController(c *gin.Context) {
 	case "http":
 		domain.HTTPProxyHandler(c, err, address, serviceBO.Name)
 	case "grpc":
-		//domain.GRPCProxyHandler(c, err, address)
+		domain.GRPCProxyHandler(c, address, apiBO)
 	default:
 		util.ServerError(c, 4, "未知协议")
 	}

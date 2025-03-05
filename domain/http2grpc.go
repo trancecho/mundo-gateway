@@ -19,111 +19,97 @@ import (
 	"google.golang.org/protobuf/types/descriptorpb"
 	"google.golang.org/protobuf/types/dynamicpb"
 	"io"
+	"log"
 	"sync"
 	"time"
 )
 
-//type RegisterServiceBO struct {
-//	Name     string `json:"name"`
-//	Prefix   string `json:"prefix"`
-//	Protocol string `json:"protocol"`
-//	Address  string `json:"address"`
-//}
-//
-//func RegisterServiceService(c *gin.Context, bo RegisterServiceBO) bool {
-//	//var svc po.ServiceBO
-//	//GatewayGlobal.DB.Find(&svc
-//	GatewayGlobal.DB.Create(&po.ServiceBO{
-//		Name:     bo.Name,
-//		Prefix:   bo.Prefix,
-//		Protocol: bo.Protocol,
-//	})
-//	return true
-//}
-
-type MethodCache struct {
+type GrpcConnPool struct {
 	sync.RWMutex
-	entries map[string]*methodMeta // key: grpcServer/service/method
+	conns map[string]*grpc.ClientConn // key: grpcServer
 }
 
-type methodMeta struct {
-	methodDesc  protoreflect.MethodDescriptor
-	lastUpdated time.Time
+type MethodDescCache struct {
+	sync.RWMutex
+	cache map[string]protoreflect.MethodDescriptor
 }
 
 var (
-	methodCache = &MethodCache{
-		entries: make(map[string]*methodMeta),
-	}
 	grpcTimeout = 5 * time.Second
-	connPool    = struct {
-		sync.RWMutex
-		conns map[string]*grpc.ClientConn // key: grpcServer
-	}{
+	connPool    = &GrpcConnPool{
 		conns: make(map[string]*grpc.ClientConn),
+	}
+	methodDescCache = &MethodDescCache{
+		cache: make(map[string]protoreflect.MethodDescriptor),
 	}
 )
 
-func GRPCProxyHandler(c *gin.Context, grpcMethod string, grpcService string, grpcServer string) {
-	cacheKey := fmt.Sprintf("%s/%s/%s", grpcServer, grpcService, grpcMethod)
+func GRPCProxyHandler(c *gin.Context, address string, apibo *APIBO) {
+	//address为grpc://ip:port的格式，需要去掉前缀
+	address = address[7:]
+	grpcService := apibo.GrpcMethodMeta.ServiceName
+	grpcMethod := apibo.GrpcMethodMeta.MethodName
 
-	// 尝试从缓存获取方法元数据
-	if meta, ok := getMethodFromCache(cacheKey); ok {
-		conn, err := getOrCreateConn(grpcServer)
-		if err != nil {
-			util.ServerError(c, 500, "连接失败")
-			return
-		}
+	// 生成缓存key
+	cacheKey := fmt.Sprintf("%s/%s/%s", address, grpcService, grpcMethod)
+	log.Println("cacheKey:", cacheKey)
 
-		if handleCachedRequest(c, conn, meta.methodDesc, grpcService, grpcMethod) {
-			return
-		}
-		// 调用失败则清除缓存条目
-		removeFromCache(cacheKey)
-	}
-
-	// 缓存未命中或调用失败，重新反射获取
-	conn, err := getOrCreateConn(grpcServer)
+	// 尝试从缓存获取
+	methodDescCache.RLock()
+	methodDesc, exists := methodDescCache.cache[cacheKey]
+	methodDescCache.RUnlock()
+	// 获取连接
+	conn, err := getOrCreateConn(address)
 	if err != nil {
 		util.ServerError(c, 500, "连接失败")
 		return
 	}
 
-	methodDesc, err := reflectMethodDescriptor(conn, grpcService, grpcMethod)
-	if err != nil {
-		util.ServerError(c, 404, "方法不存在")
-		return
-	}
+	if !exists {
+		// 通过反射获取方法描述符
+		methodDesc, err = reflectMethodDescriptor(conn, grpcService, grpcMethod)
+		if err != nil {
+			log.Println("反射获取方法描述符失败:", err)
+			return
+		}
 
-	// 更新缓存
-	updateCache(cacheKey, methodDesc)
+		// 存入缓存
+		methodDescCache.Lock()
+		methodDescCache.cache[cacheKey] = methodDesc
+		methodDescCache.Unlock()
+	}
 
 	// 处理请求
 	handleCachedRequest(c, conn, methodDesc, grpcService, grpcMethod)
 }
 
 // 缓存操作函数
-func getMethodFromCache(key string) (*methodMeta, bool) {
-	methodCache.RLock()
-	defer methodCache.RUnlock()
-	entry, exists := methodCache.entries[key]
-	return entry, exists
-}
+//func getMethodFromCache(apiId string) (*methodMeta, bool) {
+//	methodCache.RLock()
+//	defer methodCache.RUnlock()
+//	entry, exists := methodCache.entries[key]
+//	return entry, exists
+//}
 
-func updateCache(key string, desc protoreflect.MethodDescriptor) {
-	methodCache.Lock()
-	defer methodCache.Unlock()
-	methodCache.entries[key] = &methodMeta{
-		methodDesc:  desc,
-		lastUpdated: time.Now(),
-	}
-}
+//func updateCache(ApiId int64, desc protoreflect.MethodDescriptor) {
+//	GatewayGlobal.RWMutex.Lock()
+//	defer GatewayGlobal.RWMutex.Unlock()
+//	//根据 apiId 更新
+//	for i := range GatewayGlobal.Services {
+//		for j := range GatewayGlobal.Services[i].APIs {
+//			if GatewayGlobal.Services[i].APIs[j].Id == ApiId {
+//				GatewayGlobal.Services[i].APIs[j].GrpcMethodMeta.MethodDesc = desc
+//				GatewayGlobal.Services[i].APIs[j].GrpcMethodMeta.LastUpdated = time.Now()
+//			}
+//		}
+//	}
+//}
 
-func removeFromCache(key string) {
-	methodCache.Lock()
-	defer methodCache.Unlock()
-	delete(methodCache.entries, key)
-}
+//func removeFromCache(key string) {
+//	methodCache.Lock()
+//	defer methodCache.Unlock()
+//	delete(methodCache.entries, key)
+//}
 
 // 连接池管理
 func getOrCreateConn(grpcServer string) (*grpc.ClientConn, error) {
@@ -199,7 +185,7 @@ func handleCachedRequest(
 ) bool {
 	reqMsg := dynamicpb.NewMessage(methodDesc.Input())
 	if err := bindGRPCRequest(c, reqMsg); err != nil {
-		util.ClientErr(c, 400, "请求参数错误")
+		util.ClientError(c, 400, "请求参数错误")
 		return false
 	}
 

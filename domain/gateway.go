@@ -34,7 +34,7 @@ func NewGateway() *Gateway {
 		log.Fatalln("failed to connect database", err)
 	}
 
-	err = db.AutoMigrate(&po.Service{}, &po.API{}, &po.Address{})
+	err = db.AutoMigrate(&po.Service{}, &po.API{}, &po.Address{}, &po.GrpcMethodMeta{})
 	if err != nil {
 		log.Fatalln("failed to migrate database", err)
 	}
@@ -42,7 +42,7 @@ func NewGateway() *Gateway {
 
 	// c初始化service列表
 	var services []po.Service
-	db.Preload("Addresses").Preload("APIs").
+	db.Preload("Addresses").Preload("APIs.GrpcMethodMeta").
 		Find(&services)
 	log.Println("services:", services)
 	var prefixes []Prefix
@@ -63,9 +63,14 @@ func NewGateway() *Gateway {
 		var apis []APIBO
 		for _, api := range service.APIs {
 			apis = append(apis, APIBO{
-				APIPOId: api.ID,
-				Path:    api.Path,
-				Method:  api.Method,
+				Id:         api.ID,
+				HttpPath:   api.HttpPath,
+				HttpMethod: api.HttpMethod,
+				GrpcMethodMeta: GrpcMethodMetaBO{
+					ApiId:       api.ID,
+					ServiceName: api.GrpcMethodMeta.ServiceName,
+					MethodName:  api.GrpcMethodMeta.MethodName,
+				},
 			})
 		}
 
@@ -117,9 +122,9 @@ func (g *Gateway) FlushGateway() {
 		var apis []APIBO
 		for _, api := range service.APIs {
 			apis = append(apis, APIBO{
-				APIPOId: api.ID,
-				Path:    api.Path,
-				Method:  api.Method,
+				Id:         api.ID,
+				HttpPath:   api.HttpPath,
+				HttpMethod: api.HttpMethod,
 			})
 		}
 

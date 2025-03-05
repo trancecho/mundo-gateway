@@ -30,7 +30,7 @@ func MakeRoutes(r *gin.Engine) {
 		// 检查路径是否以 /gateway 开头
 		if strings.HasPrefix(c.Request.URL.Path, "/gateway") {
 			// 如果是 /gateway 前缀，返回 404
-			util.ClientErr(c, 404, "不支持gateway前缀")
+			util.ClientError(c, 404, "不支持gateway前缀")
 			return
 		}
 

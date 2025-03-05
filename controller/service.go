@@ -5,6 +5,7 @@ import (
 	"github.com/trancecho/mundo-gateway/controller/dto"
 	"github.com/trancecho/mundo-gateway/domain"
 	"github.com/trancecho/mundo-gateway/util"
+	"log"
 	"strconv"
 	"strings"
 )
@@ -18,7 +19,7 @@ import (
 
 //type Address struct {
 //	Id        int64
-//	ServiceId int64
+//	ApiId int64
 //	Address   string
 //}
 
@@ -26,18 +27,18 @@ func CreateServiceController(c *gin.Context) {
 	var req dto.ServiceCreateReq
 	c.ShouldBindJSON(&req)
 	if req.Name == "" {
-		util.ClientErr(c, 1, "name不能为空")
+		util.ClientError(c, 1, "name不能为空")
 		return
 	}
 	if req.Prefix == "" {
-		util.ClientErr(c, 2, "prefix不能为空")
+		util.ClientError(c, 2, "prefix不能为空")
 		return
 	}
 	if req.Prefix == "gateway" {
-		util.ClientErr(c, 300, "prefix不能为gateway ")
+		util.ClientError(c, 300, "prefix不能为gateway ")
 	}
 	if req.Protocol == "" {
-		util.ClientErr(c, 310, "protocol不能为空")
+		util.ClientError(c, 310, "protocol不能为空")
 		return
 	}
 	// 根据协议判断地址是否合规 目前只有http和grpc
@@ -48,7 +49,8 @@ func CreateServiceController(c *gin.Context) {
 			return
 		}
 	} else if req.Protocol == "grpc" {
-		if req.Address[:6] != "grpc://" {
+		if req.Address[:7] != "grpc://" {
+			log.Println(req.Address[:7])
 			util.ServerError(c, 600, "grpc协议地址不能为空")
 			return
 		}

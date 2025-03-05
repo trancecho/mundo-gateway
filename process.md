@@ -4,11 +4,14 @@
 3.注册serviec和api的路由
 2.跑通pingdemo http转发方式(
 4.连接池(使用client)
+2.跑通ping demo grpc转发方式(
 
 正在进行：
-1.grpc和http转发。
-2.跑通pingdemo grpc转发方式( 
-5.上线http转发
+5.上线http转发（zyb doing）
+http连接池修复
+api模块的controller改造适配数据结构。
+实现：删除服务顺带删除API(zyb)
+实现：不能同时插入多个相同路由API(zyb)
 
 未来计划：
 2.解耦注册中心

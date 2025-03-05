@@ -6,12 +6,6 @@ import (
 	"log"
 )
 
-type APIBO struct {
-	APIPOId int64
-	Path    string
-	Method  string
-}
-
 // ServiceBO BO 业务对象
 type ServiceBO struct {
 	ServicePOId int64
@@ -108,7 +102,7 @@ func UpdateServiceService(dto *dto.ServiceUpdateReq) (*po.Service, bool) {
 	// 更新地址
 	//var addresses []po.Address
 	//GatewayGlobal.DB.Where("service_id = ?", servicePO.ID).Find(&addresses)
-	//addresses = append(addresses, po.Address{ServiceId: servicePO.ID, Address: dto.Address})
+	//addresses = append(addresses, po.Address{ApiId: servicePO.ID, Address: dto.Address})
 	//err = GatewayGlobal.DB.Save(&addresses).Error
 	//if err != nil {
 	//	log.Println("服务新地址保存失败", err)

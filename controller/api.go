@@ -12,22 +12,21 @@ func CreateAPIController(c *gin.Context) {
 	var req dto.APICreateReq
 	c.BindJSON(&req)
 	if req.ServiceName == "" {
-		util.ClientErr(c, 100, "name不能为空")
+		util.ClientError(c, 100, "name不能为空")
 		return
 	}
 	if req.Path == "" {
-		util.ClientErr(c, 2, "path不能为空")
+		util.ClientError(c, 2, "path不能为空")
 		return
 	}
 	if req.Method == "" {
-		util.ClientErr(c, 3, "method不能为空")
+		util.ClientError(c, 3, "method不能为空")
 		return
 	}
 	// 创建API
-
 	apiPO, err := domain.CreateAPIService(&req)
 	if err != nil {
-		util.ServerError(c, 4, "API创建失败")
+		util.ServerError(c, 4, "API创建失败:"+err.Error())
 		return
 	}
 	domain.GatewayGlobal.FlushGateway()
@@ -41,19 +40,19 @@ func UpdateAPIController(c *gin.Context) {
 	var req dto.APIUpdateReq
 	c.BindJSON(&req)
 	if req.Id == 0 {
-		util.ClientErr(c, 1, "id不能为空")
+		util.ClientError(c, 1, "id不能为空")
 		return
 	}
 	if req.Name == "" {
-		util.ClientErr(c, 2, "name不能为空")
+		util.ClientError(c, 2, "name不能为空")
 		return
 	}
 	if req.Path == "" {
-		util.ClientErr(c, 3, "path不能为空")
+		util.ClientError(c, 3, "path不能为空")
 		return
 	}
 	if req.Method == "" {
-		util.ClientErr(c, 4, "method不能为空")
+		util.ClientError(c, 4, "method不能为空")
 		return
 	}
 	// 更新API
@@ -73,7 +72,7 @@ func DeleteAPIController(c *gin.Context) {
 	var req dto.APIDeleteReq
 	c.BindJSON(&req)
 	if req.Id == 0 {
-		util.ClientErr(c, 1, "id不能为空")
+		util.ClientError(c, 1, "id不能为空")
 		return
 	}
 	// 删除API
@@ -101,7 +100,7 @@ func GetAPIController(c *gin.Context) {
 		util.ServerError(c, 4, "API获取失败")
 		return
 	}
-	
+
 	util.Ok(c, "API获取成功", gin.H{
 		"api": apiPO,
 	})

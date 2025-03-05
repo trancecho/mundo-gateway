@@ -12,14 +12,14 @@ func Ok(c *gin.Context, message string, data gin.H) {
 		data = gin.H{}
 	}
 	c.JSON(200, gin.H{
-		"errCode": 20000,
+		"errCode": 200000,
 		"message": message,
 		"data":    data,
 	})
 }
 
 // 规范：错误码提供三位，从000开始
-func ClientErr(c *gin.Context, errCode int, message string) {
+func ClientError(c *gin.Context, errCode int, message string) {
 	log.Println("客户端错误", errCode, message)
 	c.JSON(400, gin.H{
 		"errCode": 400000 + errCode,

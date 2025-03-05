@@ -32,8 +32,8 @@ func init() {
 		Prefix: "/api/v1",
 		APIs: []po.API{
 			{
-				Path:   "/ping",
-				Method: http.MethodGet,
+				HttpPath:   "/ping",
+				HttpMethod: http.MethodGet,
 			},
 		},
 	}
