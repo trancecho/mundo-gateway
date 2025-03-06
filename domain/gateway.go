@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"github.com/trancecho/mundo-gateway/config"
 	"log"
 	"net/http"
 	"sync"
@@ -28,7 +29,8 @@ func NewGateway() *Gateway {
 	var err error
 	// 会自己注册一个地址的。
 	var db *gorm.DB
-	dsn := "root:123456@tcp(127.0.0.1:13306)/md_gateway?charset=utf8mb4&parseTime=True&loc=Local"
+	pwd := config.GlobalConfig.Mysql.Pwd
+	dsn := "root:" + pwd + "@tcp(127.0.0.1:13306)/md_gateway?charset=utf8mb4&parseTime=True&loc=Local"
 	db, err = gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
 		log.Fatalln("failed to connect database", err)

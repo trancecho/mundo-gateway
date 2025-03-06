@@ -5,13 +5,15 @@
 2.跑通pingdemo http转发方式(
 4.连接池(使用client)
 2.跑通ping demo grpc转发方式(
+服务注册sdk
+5.上线网关（zyb doing）
 
 正在进行：
-5.上线http转发（zyb doing）
 http连接池修复
 api模块的controller改造适配数据结构。
 实现：删除服务顺带删除API(zyb)
 实现：不能同时插入多个相同路由API(zyb)
+修复路径匹配问题，从遍历数据库改成匹配第一个/之后内容
 
 未来计划：
 2.解耦注册中心

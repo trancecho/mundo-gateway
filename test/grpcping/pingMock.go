@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/trancecho/mundo-gateway/sdk"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/reflection"
 	"log"
@@ -52,6 +54,16 @@ func main() {
 		log.Println("HTTP server started on :12389")
 		return r.Run(":12389")
 	})
+
+	// 初始化 SDK
+	gatewaySDK := sdk.NewGatewaySDK("http://113.44.36.26:12388")
+
+	// 自动注册 Gin 路由到网关
+	if err := gatewaySDK.AutoRegisterGinRoutes(r, "ping/v2"); err != nil {
+		fmt.Println("Failed to auto-register routes:", err)
+	} else {
+		fmt.Println("All routes auto-registered successfully")
+	}
 
 	// 等待任意一个出错退出
 	if err := g.Wait(); err != nil {

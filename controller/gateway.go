@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http/httputil"
 	"net/url"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/trancecho/mundo-gateway/domain"
@@ -27,18 +28,31 @@ func HandleRequestController(c *gin.Context) {
 	method := c.Request.Method
 	// 获得地址和path对
 	var prefix string
+
+	// 提取路径中第一个 `/` 之后的内容
+	pathParts := strings.SplitN(path, "/", 3)
+	if len(pathParts) < 3 {
+		util.ClientError(c, 100, "路径不合法")
+		return
+	}
+	// 这里的path是去掉了第一个 `/` 的部分
+	path = "/" + pathParts[2]
+	// 这里的prefix是第一个 `/` 之后的部分
+	prefix = "/" + pathParts[1]
+	var prefixOkFlag bool
 	// 用Prefix列表匹配找到对应的服务
 	// todo 可以进行o1优化，用map存储
 	for _, curPrefix := range domain.GatewayGlobal.Prefixes {
-		if len(path) < len(curPrefix.Name) {
-			continue
-		}
-		// 去除前缀
-		if path[:len(curPrefix.Name)] == curPrefix.Name {
-			path = path[len(curPrefix.Name):]
-			prefix = curPrefix.Name
+		log.Println("curPrefix", curPrefix)
+		log.Println("prefix", prefix)
+		if curPrefix.Name == prefix {
+			prefixOkFlag = true
 			break
 		}
+	}
+	if !prefixOkFlag {
+		util.ClientError(c, 200, "prefix不合法")
+		return
 	}
 	c.Request.URL.Path = path
 	fmt.Println("访问路由：", "c.Request.URL.HttpPath:", c.Request.URL.Path, "method:", method, "prefix:", prefix)
