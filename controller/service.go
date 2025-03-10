@@ -107,6 +107,14 @@ func DeleteServiceController(c *gin.Context) {
 		util.ServerError(c, 1, "id不能为空")
 		return
 	}
+
+	// 删除与该服务相关的所有API
+	err = domain.DeleteAPIsByServiceID(idInt64) // 调用删除API的函数
+	if err != nil {
+		util.ServerError(c, 2, "删除相关API失败")
+		return
+	}
+
 	ok := domain.DeleteServiceService(idInt64)
 	if !ok {
 		util.ServerError(c, 2, "服务删除失败")
@@ -114,7 +122,7 @@ func DeleteServiceController(c *gin.Context) {
 	}
 	domain.GatewayGlobal.FlushGateway()
 
-	util.Ok(c, "服务删除成功", nil)
+	util.Ok(c, "服务删除和相关api删除成功", nil)
 }
 
 func DeleteServiceAddressController(c *gin.Context) {

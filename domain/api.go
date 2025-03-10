@@ -201,3 +201,40 @@ func ListAPIService() ([]*po.API, error) {
 	}
 	return apiPOs, nil
 }
+
+// GetAPIByPathAndMethod 检查数据库中是否已存在相同路径和方法的 API
+func GetAPIByPathAndMethod(path string, method string) (*po.API, error) {
+	var apiPO po.API
+	db := GatewayGlobal.DB
+
+	// 查询数据库中是否存在相同路径和方法的 API
+	affected := db.Where("http_path = ? AND http_method = ?", path, method).
+		First(&apiPO).RowsAffected
+
+	// 如果存在，返回该 API
+	if affected > 0 {
+		return &apiPO, nil
+	}
+
+	// 如果不存在，返回 nil
+	return nil, nil
+}
+
+// DeleteAPIsByServiceID
+func DeleteAPIsByServiceID(serviceID int64) error {
+	// 假设使用 ORM 来删除所有与服务 ID 相关的 API
+	var apis []po.API
+	db := GatewayGlobal.DB
+
+	// 查询所有与服务 ID 相关的 API
+	if err := db.Where("service_id = ?", serviceID).Find(&apis).Error; err != nil {
+		return err
+	}
+
+	// 删除找到的所有 API
+	if err := db.Delete(&apis).Error; err != nil {
+		return err
+	}
+
+	return nil
+}
