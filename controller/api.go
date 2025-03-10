@@ -23,6 +23,14 @@ func CreateAPIController(c *gin.Context) {
 		util.ClientError(c, 3, "method不能为空")
 		return
 	}
+
+	// 检查是否已存在相同的路径和方法,这里开始写bug
+	existingAPI, err := domain.GetAPIByPathAndMethod(req.Path, req.Method)
+	if err == nil && existingAPI != nil {
+		util.ClientError(c, 101, "API路径和方法已存在")
+		return
+	}
+
 	// 创建API
 	apiPO, err := domain.CreateAPIService(&req)
 	if err != nil {
