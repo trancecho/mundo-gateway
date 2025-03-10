@@ -47,6 +47,7 @@ var (
 func GRPCProxyHandler(c *gin.Context, address string, apibo *APIBO) {
 	//address为grpc://ip:port的格式，需要去掉前缀
 	address = address[7:]
+	log.Println("啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊地址:", address)
 	grpcService := apibo.GrpcMethodMeta.ServiceName
 	grpcMethod := apibo.GrpcMethodMeta.MethodName
 

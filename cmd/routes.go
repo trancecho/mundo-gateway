@@ -24,6 +24,8 @@ func MakeRoutes(r *gin.Engine) {
 	r.DELETE("/gateway/api", controller.DeleteAPIController)
 	r.GET("/gateway/api", controller.GetAPIController)
 	r.GET("/gateway/api/list", controller.ListAPIController)
+	
+	r.GET("/gateway/flush", controller.FlushAPIController)
 
 	// 通配符路由，排除 /gateway 前缀
 	r.NoRoute(func(c *gin.Context) {

@@ -7,11 +7,6 @@ import (
 
 var GlobalConfig *Config
 
-// MySQLConfig 定义 MySQL 配置结构体
-type MySQLConfig struct {
-	Pwd string `mapstructure:"pwd"`
-}
-
 // Config 定义配置结构体
 type Config struct {
 	Mysql struct {

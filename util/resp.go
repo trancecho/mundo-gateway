@@ -12,9 +12,9 @@ func Ok(c *gin.Context, message string, data gin.H) {
 		data = gin.H{}
 	}
 	c.JSON(200, gin.H{
-		"errCode": 200000,
-		"message": message,
-		"data":    data,
+		"err_code": 200000,
+		"message":  message,
+		"data":     data,
 	})
 }
 
@@ -22,16 +22,16 @@ func Ok(c *gin.Context, message string, data gin.H) {
 func ClientError(c *gin.Context, errCode int, message string) {
 	log.Println("客户端错误", errCode, message)
 	c.JSON(400, gin.H{
-		"errCode": 400000 + errCode,
-		"message": message,
+		"err_code": 400000 + errCode,
+		"message":  message,
 	})
 }
 
 func ServerError(c *gin.Context, errCode int, message string) {
 	log.Println("服务端错误", errCode, message)
 	c.JSON(500, gin.H{
-		"errCode": 500000 + errCode,
-		"message": message,
+		"err_code": 500000 + errCode,
+		"message":  message,
 	})
 }
 

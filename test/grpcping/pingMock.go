@@ -56,13 +56,20 @@ func main() {
 	})
 
 	// 初始化 SDK
-	gatewaySDK := sdk.NewGatewaySDK("http://113.44.36.26:12388")
+	gatewaySDK := sdk.NewGatewaySDK("http://localhost:12388")
 
 	// 自动注册 Gin 路由到网关
-	if err := gatewaySDK.AutoRegisterGinRoutes(r, "ping/v2"); err != nil {
+	if err := gatewaySDK.AutoRegisterGinRoutes(r, "ping_v2"); err != nil {
 		fmt.Println("Failed to auto-register routes:", err)
 	} else {
 		fmt.Println("All routes auto-registered successfully")
+	}
+
+	err = gatewaySDK.AutoRegisterGRPCRoutes(s, "grpc_ping_v2")
+	if err != nil {
+		fmt.Println("Failed to auto-register gRPC routes:", err)
+	} else {
+		fmt.Println("All gRPC routes auto-registered successfully")
 	}
 
 	// 等待任意一个出错退出

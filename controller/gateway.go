@@ -55,7 +55,7 @@ func HandleRequestController(c *gin.Context) {
 		return
 	}
 	c.Request.URL.Path = path
-	fmt.Println("访问路由：", "c.Request.URL.HttpPath:", c.Request.URL.Path, "method:", method, "prefix:", prefix)
+	fmt.Println("访问路由：", "c.Request.URL.Path:", c.Request.URL.Path, "method:", method, "prefix:", prefix)
 	// 尝试直接从缓存拿服务
 	//var servicePO po.Service
 	// 找到可用服务地址
@@ -110,4 +110,10 @@ func HandleRequestController(c *gin.Context) {
 func InitGateway() {
 	domain.GatewayGlobal = domain.NewGateway()
 	//log.Println("初始化网关", domain.GatewayGlobal)
+}
+
+func FlushAPIController(c *gin.Context) {
+	// 重新加载API
+	domain.GatewayGlobal.FlushGateway()
+	util.Ok(c, "网关刷新成功", nil)
 }
