@@ -18,7 +18,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v3
         with:
-          go-version: '1.22'  # 修正 Go 版本
+          go-version: '1.23'  # 修正 Go 版本
 
 
       # 安装依赖
