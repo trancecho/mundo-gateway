@@ -1,0 +1,61 @@
+name: Gateway CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-22.04
+#    runs-on: self-hosted
+    steps:
+      # 检出代码
+      - name: Checkout code
+        uses: actions/checkout@v2
+      # 设置 Go 环境
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: '1.23'
+
+      # 安装依赖
+      - name: Install dependencies
+        run: go mod tidy
+
+      # 编译 Go 程序
+      - name: Build Go application
+        run: go build -ldflags "-s -w" -o ./mundo ./cmd/main.go
+
+      # Compress the binary
+      - name: Compress the binary
+        run: gzip -k ./mundo
+
+      # 设置 SSH 连接
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.7.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Stop mundo
+#        run: ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} 'pkill -f mundo' || true
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
+          # 停止旧的screen会话（如果存在）
+          screen -S mundo -X quit || true
+
+      # 传输编译后的二进制文件到服务器
+      - name: Transfer binary to JD Cloud Server
+        run: scp -C -o StrictHostKeyChecking=no ./mundo.gz ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/root/mundo/
+
+      # 在服务器上运行二进制文件
+      - name: Deploy on JD Cloud Server
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
+          # 目录切换到/root/mundo
+          cd /root/mundo
+          # Decompress the binary
+          gunzip -f ./mundo.gz
+          # 启动新的screen会话并运行程序
+          screen -dmS mundo ./mundo
+          EOF
