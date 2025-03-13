@@ -4,24 +4,21 @@ on:
   push:
     branches:
       - master
-  pull_request:
-    branches:
-      - master
 
 jobs:
   build_and_deploy:
     runs-on: ubuntu-22.04
-#    runs-on: self-hosted
+
     steps:
       # 检出代码
       - name: Checkout code
         uses: actions/checkout@v2
-        
+
       # 设置 Go 环境
       - name: Set up Go
         uses: actions/setup-go@v3
         with:
-          go-version: '1.23'
+          go-version: '1.22'  # 修正 Go 版本
 
       # 安装依赖
       - name: Install dependencies
@@ -41,13 +38,13 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      # 停止旧的 mundo 进程
-      - name: Stop mundo
-#        run: ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} 'pkill -f mundo' || true
+      # 确保服务器上的 mundo 目录存在，并停止旧进程
+      - name: Stop mundo and prepare directory
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
-          # 停止旧的screen会话（如果存在）
+          mkdir -p /root/mundo  # 确保目录存在
           screen -S mundo -X quit || true
+          pkill -f mundo || true
           EOF
 
       # 传输编译后的二进制文件到服务器
@@ -58,11 +55,10 @@ jobs:
       - name: Deploy on JD Cloud Server
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
-          # 目录切换到 /root/mundo
           cd /root/mundo
-          # 解压二进制文件
           gunzip -f ./mundo.gz
-          # 启动新的screen会话并运行程序
-          screen -dmS mundo ./mundo
+          chmod +x ./mundo  # 确保可执行权限
+          screen -dmS mundo bash -c './mundo >> mundo.log 2>&1'  # 运行并写入日志
           EOF
+
 
