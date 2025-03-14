@@ -49,13 +49,13 @@ jobs:
           ls /tmp
           
           # 创建目标路径，如果不存在
-          sudo mkdir -p /usr/local/bin
+          sudo mkdir -p /root/local/bin
           
           # 将解压出的 buf 文件移动到合适的路径（例如 /usr/local/bin）
-          sudo mv /tmp/buf-1.10.0-linux-amd64 /usr/local/bin/buf
+          sudo mv /tmp/buf-1.10.0-linux-amd64 /root/local/bin/buf
           
           # 设置可执行权限
-          sudo chmod +x /usr/local/bin/buf
+          sudo chmod +x /root/local/bin/buf
           EOF
 
 
