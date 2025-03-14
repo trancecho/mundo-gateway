@@ -19,12 +19,21 @@ jobs:
         uses: actions/setup-go@v3
         with:
           go-version: '1.23'  # 修正 Go 版本
-          
+
       # 设置 Git 使用 Personal Access Token (PAT)
       - name: Set up Git for private repo access
         run: |
           git config --global url."https://kll-svg:${{ secrets.GH_TOKEN }}@github.com/".insteadOf "https://github.com/"
           echo "GOPRIVATE=github.com/kll-svg/*" >> $GITHUB_ENV
+
+      # 设置 GitHub SSH 私钥
+      - name: Set up SSH for Go modules access
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          echo "Host github.com\n  HostName github.com\n  User git\n  IdentityFile ~/.ssh/id_rsa\n  StrictHostKeyChecking no" > ~/.ssh/config
+        # 通过 SSH 配置访问私有仓库
 
       # 安装依赖
       - name: Install dependencies
@@ -66,6 +75,7 @@ jobs:
           chmod +x ./mundo  # 确保可执行权限
           screen -dmS mundo bash -c './mundo >> mundo.log 2>&1'  # 运行并写入日志
           EOF
+
 
 
 
