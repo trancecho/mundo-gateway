@@ -33,15 +33,31 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      # 安装 buf 工具
       - name: Install buf tool on the server
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
+          # 下载 buf 压缩包
           curl -sSL https://github.com/bufbuild/buf/releases/download/v1.10.0/buf-1.10.0-linux-amd64.tar.gz -o /tmp/buf.tar.gz
+          
+          # 检查文件类型
+          file /tmp/buf.tar.gz
+          
+          # 解压缩 buf.tar.gz
           tar -xvzf /tmp/buf.tar.gz -C /tmp
-          sudo mv /tmp/buf-1.10.0-linux-amd64 /root/local/bin/buf
-          sudo chmod +x /root/local/bin/buf
+          
+          # 确保 buf 二进制文件存在
+          ls /tmp
+          
+          # 创建目标路径，如果不存在
+          sudo mkdir -p /usr/local/bin
+          
+          # 将解压出的 buf 文件移动到合适的路径（例如 /usr/local/bin）
+          sudo mv /tmp/buf-1.10.0-linux-amd64 /usr/local/bin/buf
+          
+          # 设置可执行权限
+          sudo chmod +x /usr/local/bin/buf
           EOF
+
 
       - name: Generate pb files on server
         run: |
