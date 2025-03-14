@@ -1,83 +1,78 @@
-name: Gateway CI/CD Pipeline
+name: Mundo-Gateway CI/CD Pipeline
 
 on:
   push:
     branches:
-      - master  # 触发 CI/CD 流程的分支，这里是 master 分支
+      - master
 
 jobs:
   build_and_deploy:
-    runs-on: ubuntu-22.04  # 使用 Ubuntu 22.04 作为运行环境
+    runs-on: ubuntu-22.04
 
     steps:
-      # 1️⃣ 检出代码
       - name: Checkout code
-        uses: actions/checkout@v2  # 使用 GitHub 提供的 checkout Action，检出代码
+        uses: actions/checkout@v2
 
-      # 2️⃣ 设置 Go 环境
       - name: Set up Go
-        uses: actions/setup-go@v3  # 使用 setup-go action 设置 Go 环境
+        uses: actions/setup-go@v3
         with:
-          go-version: '1.23'  # 设置 Go 版本为 1.23
+          go-version: '1.22'
 
-      # 3️⃣ 设置 Git 以访问私有仓库
+      - name: Debug SSH Connection
+        run: |
+          echo "Server User: ${{ secrets.SERVER_USER }}"
+          echo "Server Host: ${{ secrets.SERVER_HOST }}"
+
       - name: Set up Git for private repo access
         run: |
-          git config --global url."https://${{ secrets.GH_TOKEN }}@github.com/".insteadOf "https://github.com/"  # 设置 Git 配置，使用 GitHub token 访问私有仓库
-          echo "GOPRIVATE=github.com/kll-svg/*" >> $GITHUB_ENV  # 设置 Go 私有仓库访问环境变量
+          git config --global url."https://${{ secrets.GH_TOKEN }}@github.com/".insteadOf "https://github.com/"
+          echo "GOPRIVATE=github.com/kll-svg/*" >> $GITHUB_ENV
           
-      # 6️⃣ 配置 SSH，连接服务器执行 buf generate
       - name: Setup SSH
-        uses: webfactory/ssh-agent@v0.7.0  # 使用 webfactory/ssh-agent Action 配置 SSH 代理
+        uses: webfactory/ssh-agent@v0.8.0
         with:
-          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}  # 使用 GitHub Secrets 中存储的 SSH 私钥
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      # 在服务器上执行 buf generate 生成 pb 文件
       - name: Generate pb files on server
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
-          mkdir -p /root/mundo
-          cd /root/mundo
+          mkdir -p /root/mundo-gateway && cd /root/mundo-gateway
           buf generate
           EOF
 
-      # 5️⃣ 安装 Go 依赖（此时 pb.go 已经生成）
       - name: Install dependencies
-        run: |
-          go mod tidy  # 安装 Go 项目的依赖，确保 Go 项目的依赖不会被误删
+        run: go mod tidy
 
-      # 7️⃣ 编译 Go 二进制文件
       - name: Build Go application
-        run: go build -ldflags "-s -w" -o ./mundo ./cmd/main.go  # 编译 Go 应用程序，生成可执行文件 mundo
+        run: go build -ldflags "-s -w" -o ./mundo-gateway ./cmd/main.go
 
-      # 8️⃣ 压缩二进制文件
       - name: Compress the binary
-        run: gzip -k ./mundo  # 使用 gzip 压缩编译好的二进制文件，生成 .gz 文件
+        run: gzip -k ./mundo-gateway
 
-      # 9️⃣ 停止旧进程
-      - name: Stop existing mundo service
+      # 停止旧的 `mundo-gateway` 容器
+      - name: Stop existing Docker containers
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
-          set -e  # 如果有任何命令失败，整个脚本将立即停止
-          echo "==== 停止旧进程 ===="
-          screen -S mundo -X quit || true  # 如果 mundo 服务在 screen 会话中运行，退出该会话
-          pkill -f mundo || true  # 强制结束正在运行的 mundo 进程
-          sleep 2  # 等待 2 秒，确保进程已完全关闭
+          set -e
+          echo "==== 停止旧的 mundo-gateway 容器 ===="
+          cd /root/mundo-gateway
+          docker-compose down || true
           EOF
 
-     
-      # 11️⃣ 启动新进程
-      - name: Start new process
+      # 上传新文件并重启 Docker 容器
+      - name: Upload new binary and restart Docker containers
         run: |
+          scp -o StrictHostKeyChecking=no ./mundo-gateway.gz ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/root/mundo-gateway/mundo-gateway.gz
           ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
-          set -e  # 如果有任何命令失败，整个脚本将立即停止
-          echo "==== 启动 mundo 服务 ===="
-          cd /root/mundo  # 进入到存放二进制文件的目录
-          gunzip -f ./mundo.gz  # 解压缩传输过来的 .gz 文件
-          chmod +x ./mundo  # 给解压后的二进制文件赋予执行权限
-          screen -dmS mundo bash -c './mundo >> mundo.log 2>&1'  # 使用 screen 启动 mundo 服务并将日志输出到 mundo.log 文件
-          echo "==== 部署完成 ===="
+          set -e
+          echo "==== 更新 mundo-gateway 二进制文件 ===="
+          cd /root/mundo-gateway
+          gunzip -f ./mundo-gateway.gz
+          chmod +x ./mundo-gateway
+          echo "==== 重新启动 mundo-gateway 容器 ===="
+          docker-compose up -d --build
           EOF
+
 
 
 
