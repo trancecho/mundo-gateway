@@ -26,15 +26,6 @@ jobs:
           git config --global url."https://kll-svg:${{ secrets.GH_TOKEN }}@github.com/".insteadOf "https://github.com/"
           echo "GOPRIVATE=github.com/kll-svg/*" >> $GITHUB_ENV
 
-      # 设置 GitHub SSH 私钥
-      - name: Set up SSH for Go modules access
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          echo "Host github.com\n  HostName github.com\n  User git\n  IdentityFile ~/.ssh/id_rsa\n  StrictHostKeyChecking no" > ~/.ssh/config
-        # 通过 SSH 配置访问私有仓库
-
       # 安装依赖
       - name: Install dependencies
         run: go mod tidy
