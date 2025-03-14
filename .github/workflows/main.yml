@@ -32,8 +32,78 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-     
-        
+      - name: Install buf tool on the server
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
+          set -e
+          echo "==== 检查是否已安装 buf ===="
+          BUF_PATH="/usr/local/bin/buf"
+          if command -v buf &> /dev/null; then
+            echo "buf 已安装，跳过安装步骤"
+            exit 0
+          fi
+
+          echo "==== 下载并安装 buf ===="
+          BUF_VERSION="1.28.1"  # 使用最新稳定版本
+          BUF_TAR="/tmp/buf.tar.gz"
+          BUF_BIN="/tmp/buf/bin/buf"
+      
+          # 下载 buf 压缩包
+          echo "正在下载 buf v$BUF_VERSION..."
+          curl -sSL -o "$BUF_TAR" "https://github.com/bufbuild/buf/releases/download/v$BUF_VERSION/buf-Linux-x86_64.tar.gz"
+          if [ ! -f "$BUF_TAR" ]; then
+            echo "错误: buf 下载失败"
+            exit 1
+          fi
+      
+          # 解压缩
+          echo "正在解压 buf..."
+          mkdir -p /tmp/buf
+          tar -xvzf "$BUF_TAR" -C /tmp/buf
+          if [ ! -f "$BUF_BIN" ]; then
+            echo "错误: buf 解压失败"
+            exit 1
+          fi
+
+          # 安装到系统路径
+          echo "正在安装 buf..."
+          sudo mv "$BUF_BIN" "$BUF_PATH"
+          sudo chmod +x "$BUF_PATH"
+      
+          # 清理临时文件
+          rm -rf /tmp/buf "$BUF_TAR"
+      
+          echo "buf 安装完成"
+          buf --version
+          EOF
+
+      - name: Generate pb files on server
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
+          set -e
+          echo "==== 生成 Protobuf 文件 ===="
+          PROJECT_DIR="/root/mundo-gateway"
+          mkdir -p "$PROJECT_DIR"
+          cd "$PROJECT_DIR"
+
+          # 检查 buf.yaml 是否存在
+          if [ ! -f "buf.yaml" ]; then
+            echo "错误: buf.yaml 文件未找到"
+            exit 1
+          fi
+      
+          # 生成 Protobuf 文件
+          echo "正在生成 Protobuf 文件..."
+          buf generate
+          if [ $? -ne 0 ]; then
+            echo "错误: Protobuf 文件生成失败"
+            exit 1
+          fi
+      
+          echo "Protobuf 文件生成成功"
+          EOF
+
+  
       - name: Install dependencies
         run: go mod tidy
 
@@ -65,7 +135,6 @@ jobs:
           echo "==== 重新启动 mundo-gateway 容器 ===="
           docker-compose up -d --build
           EOF
-
 
 
 
