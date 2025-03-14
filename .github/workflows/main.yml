@@ -32,7 +32,7 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      - name: Upload pb files
+      - name: Upload pb Go files
         run: |
           # 输出当前目录，调试文件路径
           echo "Current directory: $(pwd)"
@@ -41,8 +41,8 @@ jobs:
           # SSH 连接并创建目标目录
           ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "mkdir -p /root/mundo-gateway/test/grpcping/v1/"
       
-          # 上传 pb 文件
-          scp -o StrictHostKeyChecking=no ./test/grpcping/v1/*.pb ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/root/mundo-gateway/test/grpcping/v1/
+          # 上传 .go 文件 (ping.pb.go 和 ping_grpc.pb.go)
+          scp -o StrictHostKeyChecking=no ./test/grpcping/v1/ping.pb.go ./test/grpcping/v1/ping_grpc.pb.go ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/root/mundo-gateway/test/grpcping/v1/
 
         
       - name: Install dependencies
