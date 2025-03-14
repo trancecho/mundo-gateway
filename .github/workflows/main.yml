@@ -25,16 +25,16 @@ jobs:
         run: |
           git config --global url."https://kll-svg:${{ secrets.GH_TOKEN }}@github.com/".insteadOf "https://github.com/"
           echo "GOPRIVATE=github.com/kll-svg/*" >> $GITHUB_ENV
-
-      # 安装依赖
-      - name: Install dependencies
-        run: go mod tidy
-
+          
       # 清除 Go 缓存和依赖
       - name: Clean Go cache and dependencies
         run: |
           go clean -modcache
           rm -rf ./vendor
+          
+      # 安装依赖
+      - name: Install dependencies
+        run: go mod tidy
 
       # 压缩二进制文件
       - name: Compress the binary
