@@ -36,10 +36,6 @@ jobs:
           go clean -modcache
           rm -rf ./vendor
 
-      # 安装依赖
-      - name: Install dependencies
-        run: go mod tidy
-
       # 压缩二进制文件
       - name: Compress the binary
         run: gzip -k ./mundo
