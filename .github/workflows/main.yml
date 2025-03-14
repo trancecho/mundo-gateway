@@ -25,25 +25,25 @@ jobs:
         run: |
           git config --global url."https://${{ secrets.GH_TOKEN }}@github.com/".insteadOf "https://github.com/"  # 设置 Git 配置，使用 GitHub token 访问私有仓库
           echo "GOPRIVATE=github.com/kll-svg/*" >> $GITHUB_ENV  # 设置 Go 私有仓库访问环境变量
-
-      # 4️⃣ 生成 pb.go 文件
-      - name: Generate pb.go files
-        run: |
-          # 假设你已经有了 .proto 文件，使用 protoc 生成 Go 文件
-          # 你可以替换为你的 .proto 文件的路径和对应的插件
-          protoc --go_out=. --go-grpc_out=. ./test/grpcping/v1/*.proto
-        # 这一步会在工作目录下生成相应的 pb.go 文件
-
-      # 5️⃣ 安装 Go 依赖（此时 pb.go 已经生成）
-      - name: Install dependencies
-        run: |
-          go mod tidy  # 安装 Go 项目的依赖，确保 Go 项目的依赖不会被误删
-
+          
       # 6️⃣ 配置 SSH，连接服务器执行 buf generate
       - name: Setup SSH
         uses: webfactory/ssh-agent@v0.7.0  # 使用 webfactory/ssh-agent Action 配置 SSH 代理
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}  # 使用 GitHub Secrets 中存储的 SSH 私钥
+
+      # 🔟 传输编译后的二进制文件和 pb.go 文件到服务器
+      - name: Transfer binary and pb.go files to JD Cloud Server
+        run: |
+          # 传输生成的 pb.go 文件和二进制文件
+          scp -C -o StrictHostKeyChecking=no ./mundo.gz ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/root/mundo/  # 传输压缩后的二进制文件
+          scp -C -o StrictHostKeyChecking=no ./test/grpcping/v1/*.pb.go ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/root/mundo/  # 传输 pb.go 文件到服务器
+      
+
+      # 5️⃣ 安装 Go 依赖（此时 pb.go 已经生成）
+      - name: Install dependencies
+        run: |
+          go mod tidy  # 安装 Go 项目的依赖，确保 Go 项目的依赖不会被误删
 
       # 7️⃣ 编译 Go 二进制文件
       - name: Build Go application
@@ -64,13 +64,7 @@ jobs:
           sleep 2  # 等待 2 秒，确保进程已完全关闭
           EOF
 
-      # 🔟 传输编译后的二进制文件和 pb.go 文件到服务器
-      - name: Transfer binary and pb.go files to JD Cloud Server
-        run: |
-          # 传输生成的 pb.go 文件和二进制文件
-          scp -C -o StrictHostKeyChecking=no ./mundo.gz ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/root/mundo/  # 传输压缩后的二进制文件
-          scp -C -o StrictHostKeyChecking=no ./test/grpcping/v1/*.pb.go ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/root/mundo/  # 传输 pb.go 文件到服务器
-
+     
       # 11️⃣ 启动新进程
       - name: Start new process
         run: |
