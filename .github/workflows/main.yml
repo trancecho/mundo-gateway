@@ -33,59 +33,11 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      - name: Install buf tool on the server
+       # 确保服务器上 proto 目录存在，并上传 pb 文件
+      - name: Upload pb files
         run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
-          set -e
-
-          # 目标安装路径
-          BUF_PATH="/root/local/bin/buf"
-          
-          # 检查 buf 是否已安装
-          if [ -x "\$BUF_PATH" ]; then
-            echo "buf 已安装，跳过下载"
-            exit 0
-          fi
-          
-          echo "==== 下载并安装 buf ===="
-          BUF_VERSION="1.10.0"
-          BUF_TAR="/tmp/buf.tar.gz"
-
-          # 下载 buf 压缩包
-          curl -sSL -o "\$BUF_TAR" "https://github.com/bufbuild/buf/releases/download/v\$BUF_VERSION/buf-\$BUF_VERSION-linux-amd64.tar.gz"
-
-          # 检查下载是否成功
-          if [ ! -f "\$BUF_TAR" ]; then
-            echo "buf 下载失败"
-            exit 1
-          fi
-
-          # 解压缩 buf.tar.gz
-          tar -xvzf "\$BUF_TAR" -C /tmp
-
-          # 确保 buf 二进制文件存在
-          if [ ! -f "/tmp/buf-\$BUF_VERSION-linux-amd64" ]; then
-            echo "buf 解压失败"
-            exit 1
-          fi
-
-          # 创建目标路径，如果不存在
-          sudo mkdir -p \$(dirname "\$BUF_PATH")
-
-          # 移动文件并赋予可执行权限
-          sudo mv "/tmp/buf-\$BUF_VERSION-linux-amd64" "\$BUF_PATH"
-          sudo chmod +x "\$BUF_PATH"
-
-          echo "buf 安装完成"
-          EOF
-
-
-      - name: Generate pb files on server
-        run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
-          mkdir -p /root/mundo-gateway && cd /root/mundo-gateway
-          buf generate
-          EOF
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "mkdir -p /root/mundo-gateway/proto/"
+          scp -o StrictHostKeyChecking=no ./proto/*.pb ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/root/mundo-gateway/proto/
 
       - name: Install dependencies
         run: go mod tidy
