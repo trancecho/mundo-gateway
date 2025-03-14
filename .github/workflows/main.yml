@@ -33,11 +33,21 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      - name: Upload pb files
-        run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "mkdir -p /root/mundo-gateway/test/grpcping/v1/"
-          scp -o StrictHostKeyChecking=no ./test/grpcping/v1/*.pb ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/root/mundo-gateway/test/grpcping/v1/
 
+      - name: Upload pb files as artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: pb-files
+          path: test/grpcping/v1/*.pb
+
+      - name: Download pb files
+        uses: actions/download-artifact@v3
+        with:
+          name: pb-files
+          path: test/grpcping/v1/
+
+
+      
       - name: Install dependencies
         run: go mod tidy
 
