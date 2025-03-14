@@ -37,7 +37,7 @@ jobs:
       - name: Install buf tool on the server
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
-          curl -sSL https://github.com/bufbuild/buf/releases/download/v1.10.0/buf-1.10.0-linux-amd64.tar.gz | tar -xz -C /usr/local/bin
+          curl -sSL https://github.com/bufbuild/buf/releases/download/v1.10.0/buf-1.10.0-linux-amd64.tar.gz -o /tmp/buf.tar.gz
           EOF
 
       - name: Generate pb files on server
