@@ -10,46 +10,39 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      # 检出代码
+      # 1️⃣ 检出代码
       - name: Checkout code
         uses: actions/checkout@v2
 
-      # 设置 Go 环境
+      # 2️⃣ 设置 Go 环境
       - name: Set up Go
         uses: actions/setup-go@v3
         with:
           go-version: '1.23'  # 请确保此 Go 版本存在
 
-      # 设置 Git 以访问私有仓库
+      # 3️⃣ 设置 Git 以访问私有仓库
       - name: Set up Git for private repo access
         run: |
           git config --global url."https://${{ secrets.GH_TOKEN }}@github.com/".insteadOf "https://github.com/"
           echo "GOPRIVATE=github.com/kll-svg/*" >> $GITHUB_ENV
 
-      # 清除 Go 依赖缓存
-      - name: Clean Go module cache
-        run: |
-          go clean -modcache
-          go mod tidy
-
-      # 安装 SSH 并配置私钥
+      # 4️⃣ 配置 SSH，连接服务器执行 buf generate
       - name: Setup SSH
         uses: webfactory/ssh-agent@v0.7.0
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      # 在服务器上执行构建和部署
-      - name: Deploy to JD Cloud Server
+      # 5️⃣ 在服务器上执行 buf generate
+      - name: Generate pb files on server
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
           set -e  # 遇到错误立即退出
-          echo "==== 开始部署 ===="
+          echo "==== 开始生成 Protobuf ===="
 
-          # 确保目录存在
           mkdir -p /root/mundo
           cd /root/mundo
 
-          # 安装 buf（如果未安装）
+          # 确保 buf 已安装
           if ! command -v buf &> /dev/null; then
             echo "Installing buf..."
             curl -sSL https://github.com/bufbuild/buf/releases/latest/download/buf-Linux-x86_64 -o /usr/local/bin/buf
@@ -57,47 +50,51 @@ jobs:
           fi
 
           # 生成 pb 文件
-          echo "Generating Protobuf files..."
           buf generate
-
-          # 停止旧进程
-          echo "Stopping old process..."
-          screen -S mundo -X quit || true
-          pkill -f mundo || true
-          sleep 2  # 等待进程完全关闭
-
-          echo "==== 服务器预处理完成 ===="
+          echo "==== pb 文件生成完成 ===="
           EOF
 
-      # 编译 Go 程序
+      # 6️⃣ 安装 Go 依赖（此时 pb.go 已经生成）
+      - name: Install dependencies
+        run: |
+          go mod tidy  # 由于 pb.go 现在已经存在，tidy 不会误删依赖
+
+      # 7️⃣ 编译 Go 二进制文件
       - name: Build Go application
         run: go build -ldflags "-s -w" -o ./mundo ./cmd/main.go
 
-      # 压缩二进制文件
+      # 8️⃣ 压缩二进制文件
       - name: Compress the binary
         run: gzip -k ./mundo
 
-      # 传输编译后的二进制文件到服务器
+      # 9️⃣ 停止旧进程
+      - name: Stop existing mundo service
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
+          set -e
+          echo "==== 停止旧进程 ===="
+          screen -S mundo -X quit || true
+          pkill -f mundo || true
+          sleep 2  # 等待进程完全关闭
+          EOF
+
+      # 🔟 传输编译后的二进制文件到服务器
       - name: Transfer binary to JD Cloud Server
         run: scp -C -o StrictHostKeyChecking=no ./mundo.gz ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/root/mundo/
 
-      # 在服务器上启动新的服务
+      # 11️⃣ 启动新进程
       - name: Start new process
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
-          set -e  # 遇到错误立即退出
-          echo "==== 启动新进程 ===="
+          set -e
+          echo "==== 启动 mundo 服务 ===="
           cd /root/mundo
-
           gunzip -f ./mundo.gz
-          chmod +x ./mundo  # 确保可执行权限
-
-          # 以守护进程方式运行 mundo
-          echo "Starting mundo service..."
+          chmod +x ./mundo
           screen -dmS mundo bash -c './mundo >> mundo.log 2>&1'
-
           echo "==== 部署完成 ===="
           EOF
+
 
 
 
