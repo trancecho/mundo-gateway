@@ -30,9 +30,15 @@ jobs:
       - name: Install dependencies
         run: go mod tidy
 
-      # 编译 Go 程序
-      - name: Build Go application
-        run: go build -ldflags "-s -w" -o ./mundo ./cmd/main.go
+      # 清除 Go 缓存和依赖
+      - name: Clean Go cache and dependencies
+        run: |
+          go clean -modcache
+          rm -rf ./vendor
+
+      # 安装依赖
+      - name: Install dependencies
+        run: go mod tidy
 
       # 压缩二进制文件
       - name: Compress the binary
