@@ -32,10 +32,6 @@ jobs:
           go clean -modcache
           rm -rf ./vendor
 
-      # 上传 proto 文件到服务器
-      - name: Transfer proto files to server
-        run: scp -C -o StrictHostKeyChecking=no ./path/to/your/proto/files/*.proto ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/root/mundo/
-
       # 设置 SSH 连接
       - name: Setup SSH
         uses: webfactory/ssh-agent@v0.7.0
@@ -46,89 +42,7 @@ jobs:
       - name: Generate pb files on server
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
-          name: Gateway CI/CD Pipeline
-
-on:
-  push:
-    branches:
-      - master
-
-jobs:
-  build_and_deploy:
-    runs-on: ubuntu-22.04
-
-    steps:
-      # 检出代码
-      - name: Checkout code
-        uses: actions/checkout@v2
-
-      # 设置 Go 环境
-      - name: Set up Go
-        uses: actions/setup-go@v3
-        with:
-          go-version: '1.23'  # 修正 Go 版本
-
-      # 设置 Git 以访问私有仓库
-      - name: Set up Git for private repo access
-        run: |
-          git config --global url."https://${{ secrets.GH_TOKEN }}@github.com/".insteadOf "https://github.com/"
-          echo "GOPRIVATE=github.com/kll-svg/*" >> $GITHUB_ENV
-
-      # 清除 Go 缓存和依赖
-      - name: Clean Go cache and dependencies
-        run: |
-          go clean -modcache
-          rm -rf ./vendor
-
-      # 上传 proto 文件到服务器
-      - name: Transfer proto files to server
-        run: scp -C -o StrictHostKeyChecking=no ./path/to/your/proto/files/*.proto ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/root/mundo/
-
-      # 设置 SSH 连接
-      - name: Setup SSH
-        uses: webfactory/ssh-agent@v0.7.0
-        with:
-          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-
-      # 在服务器上执行 buf generate 生成 pb 文件
-      - name: Generate pb files on server
-        run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
-          cd /root/mundo
-          buf generate
-          EOF
-
-      # 安装 Go 依赖
-      - name: Install dependencies
-        run: go mod tidy
-
-      # 压缩二进制文件
-      - name: Compress the binary
-        run: gzip -k ./mundo
-
-      # 确保服务器上的 mundo 目录存在，并停止旧进程
-      - name: Stop mundo and prepare directory
-        run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
-          mkdir -p /root/mundo  # 确保目录存在
-          screen -S mundo -X quit || true
-          pkill -f mundo || true
-          EOF
-
-      # 传输编译后的二进制文件到服务器
-      - name: Transfer binary to JD Cloud Server
-        run: scp -C -o StrictHostKeyChecking=no ./mundo.gz ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/root/mundo/
-
-      # 在服务器上运行二进制文件
-      - name: Deploy on JD Cloud Server
-        run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
-          cd /root/mundo
-          gunzip -f ./mundo.gz
-          chmod +x ./mundo  # 确保可执行权限
-          screen -dmS mundo bash -c './mundo >> mundo.log 2>&1'  # 运行并写入日志
-          EOF
-
+          mkdir -p /root/mundo
           cd /root/mundo
           buf generate
           EOF
@@ -162,6 +76,8 @@ jobs:
           chmod +x ./mundo  # 确保可执行权限
           screen -dmS mundo bash -c './mundo >> mundo.log 2>&1'  # 运行并写入日志
           EOF
+
+
 
 
 
