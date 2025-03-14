@@ -32,13 +32,14 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}  # 使用 GitHub Secrets 中存储的 SSH 私钥
 
-      # 🔟 传输编译后的二进制文件和 pb.go 文件到服务器
-      - name: Transfer binary and pb.go files to JD Cloud Server
+      # 在服务器上执行 buf generate 生成 pb 文件
+      - name: Generate pb files on server
         run: |
-          # 传输生成的 pb.go 文件和二进制文件
-          scp -C -o StrictHostKeyChecking=no ./mundo.gz ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/root/mundo/  # 传输压缩后的二进制文件
-          scp -C -o StrictHostKeyChecking=no ./test/grpcping/v1/*.pb.go ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/root/mundo/  # 传输 pb.go 文件到服务器
-      
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
+          mkdir -p /root/mundo
+          cd /root/mundo
+          buf generate
+          EOF
 
       # 5️⃣ 安装 Go 依赖（此时 pb.go 已经生成）
       - name: Install dependencies
