@@ -38,6 +38,9 @@ jobs:
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
           curl -sSL https://github.com/bufbuild/buf/releases/download/v1.10.0/buf-1.10.0-linux-amd64.tar.gz -o /tmp/buf.tar.gz
+          tar -xvzf /tmp/buf.tar.gz -C /tmp
+          sudo mv /tmp/buf-1.10.0-linux-amd64 /root/local/bin/buf
+          sudo chmod +x /root/local/bin/buf
           EOF
 
       - name: Generate pb files on server
