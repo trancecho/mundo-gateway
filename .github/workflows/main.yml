@@ -28,16 +28,22 @@ jobs:
           git config --global url."https://${{ secrets.GH_TOKEN }}@github.com/".insteadOf "https://github.com/"
           echo "GOPRIVATE=github.com/kll-svg/*" >> $GITHUB_ENV
 
-      - name: Setup SSH
-        uses: webfactory/ssh-agent@v0.8.0
-        with:
-          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+      - name: Upload pb files
+        run: |
+          echo "${{secrets.PING_PB}}" > /test/grpcping/v1/ping.pb.go
+          echo "${{secrets.PING_GRPC_PB}}" > /test/grpcping/v1/ping_grpc.pb.go
 
       - name: Install dependencies
         run: go mod tidy
 
       - name: Build Go application
         run: go build -ldflags "-s -w" -o ./mundo-gateway ./cmd/main.go
+
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
       - name: Compress the binary
         run: gzip -k ./mundo-gateway
