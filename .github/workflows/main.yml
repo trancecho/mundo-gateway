@@ -28,23 +28,27 @@ jobs:
           git config --global url."https://${{ secrets.GH_TOKEN }}@github.com/".insteadOf "https://github.com/"
           echo "GOPRIVATE=github.com/kll-svg/*" >> $GITHUB_ENV
 
+      - name: Clean Go Cache
+        run: |
+          go clean -modcache
+          rm -rf go.sum
+
       - name: Install dependencies
-        run: go mod tidy
+        run: |
+          go mod tidy
+          go mod download
 
       - name: Build Go application
         run: |
-          go build -ldflags "-s -w" -o mundo-gateway ./cmd/main.go
-          go build -ldflags "-s -w" -o test/grpcping/pingMosk test/grpcping/pingMosk.go
+          go build -ldflags "-s -w" -o ./mundo-gateway ./cmd/main.go
+          go build -ldflags "-s -w" -o ./test/grpcping/pingMosk ./test/grpcping/pingMosk.go
 
       - name: Setup SSH
         uses: webfactory/ssh-agent@v0.8.0
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      - name: Compress the binary
-        run: gzip -k ./mundo-gateway
-
-      - name: Stop existing Docker containers
+      - name: Deploy to server
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
           set -e
@@ -53,14 +57,12 @@ jobs:
           docker-compose down || true
           EOF
 
-      - name: Upload new binary and restart Docker containers
-        run: |
-          scp -o StrictHostKeyChecking=no ./mundo-gateway.gz ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/root/mundo-gateway/mundo-gateway.gz
+          scp -o StrictHostKeyChecking=no ./mundo-gateway ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/root/mundo-gateway/mundo-gateway
+
           ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
           set -e
-          echo "==== 更新 mundo-gateway 二进制文件 ===="
+          echo "==== 赋予新二进制文件执行权限 ===="
           cd /root/mundo-gateway
-          gunzip -f ./mundo-gateway.gz
           chmod +x ./mundo-gateway
           echo "==== 重新启动 mundo-gateway 容器 ===="
           docker-compose up -d --build
