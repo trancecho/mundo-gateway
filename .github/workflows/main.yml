@@ -61,13 +61,17 @@ jobs:
           echo "==== 生成 Protobuf 文件 ===="
           PROJECT_DIR="/root/mundo-gateway"
           cd "$PROJECT_DIR"
-          if [ ! -f "buf.yaml" ]; then
-            echo "错误: buf.yaml 文件未找到"
+          
+          # 检查 buf.gen.yaml 是否存在
+          if [ ! -f "buf.gen.yaml" ]; then
+            echo "错误: buf.gen.yaml 文件未找到"
             exit 1
           fi
-
+      
+          # 运行 buf generate 生成 pb 文件
           buf generate && echo "Protobuf 文件生成成功" || { echo "错误: Protobuf 文件生成失败"; exit 1; }
           EOF
+
 
 
       - name: Install dependencies
