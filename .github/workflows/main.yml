@@ -57,11 +57,12 @@ jobs:
         run: |
           ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=60 ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
           set -e
-          
-      
-          # 运行 buf generate 生成 pb 文件
+          echo "==== 切换到正确目录并生成 Protobuf 文件 ===="
+          cd /root/mundo-gateway  # 进入包含 buf.gen.yaml 的目录
+          ls -l buf.gen.yaml  # 检查文件是否存在
           buf generate && echo "Protobuf 文件生成成功" || { echo "错误: Protobuf 文件生成失败"; exit 1; }
           EOF
+
 
 
 
