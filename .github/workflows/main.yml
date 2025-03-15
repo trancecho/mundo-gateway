@@ -33,39 +33,6 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      - name: Install buf tool on the server
-        run: |
-          ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=60 ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
-          set -e
-          
-          echo "==== 检查并安装 buf ===="
-          if ! command -v buf &>/dev/null; then
-            echo "buf 未安装，开始安装..."
-            BUF_VERSION="1.28.1"
-            curl -sSL -o "/tmp/buf.tar.gz" "https://github.com/bufbuild/buf/releases/download/v$BUF_VERSION/buf-Linux-x86_64.tar.gz"
-            tar -xvzf "/tmp/buf.tar.gz" -C /tmp
-            sudo mv "/tmp/buf/bin/buf" /usr/local/bin/buf
-            sudo chmod +x /usr/local/bin/buf
-            rm -rf /tmp/buf /tmp/buf.tar.gz
-            echo "buf 安装完成"
-          else
-            echo "buf 已安装，跳过安装步骤"
-          fi
-          EOF
-
-      - name: Generate pb files on the server
-        run: |
-          ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=60 ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
-          set -e
-          echo "==== 切换到正确目录并生成 Protobuf 文件 ===="
-          cd /root/mundo-gateway  # 进入包含 buf.gen.yaml 的目录
-          ls -l buf.gen.yaml  # 检查文件是否存在
-          buf generate && echo "Protobuf 文件生成成功" || { echo "错误: Protobuf 文件生成失败"; exit 1; }
-          EOF
-
-
-
-
       - name: Install dependencies
         run: go mod tidy
 
