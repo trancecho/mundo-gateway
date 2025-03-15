@@ -41,7 +41,7 @@ jobs:
       - name: Build Go application
         run: |
           go build -ldflags "-s -w" -o ./mundo-gateway ./cmd
-          go build -ldflags "-s -w" -o ./test/grpcping/pingMosk ./test/grpcping/pingMosk.go
+          go build -ldflags "-s -w" -o ./test/grpcping/pingMock ./test/grpcping/pingMock.go
 
       - name: Setup SSH
         uses: webfactory/ssh-agent@v0.8.0
