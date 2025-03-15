@@ -12,6 +12,10 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+      - name: Upload buf.gen.yaml to server
+        run: |
+          scp -o StrictHostKeyChecking=no buf.gen.yaml ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/root/mundo-gateway/
+
 
       - name: Set up Go
         uses: actions/setup-go@v3
