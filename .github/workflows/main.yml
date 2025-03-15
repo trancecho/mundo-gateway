@@ -33,6 +33,7 @@ jobs:
 
       - name: Build Go application
         run: go build -ldflags "-s -w" -o ./mundo-gateway ./cmd/main.go
+             go build -ldflags "-s -w" -o ./mundo-gateway./test/grpcping/pingMosk.go
 
 
       - name: Setup SSH
