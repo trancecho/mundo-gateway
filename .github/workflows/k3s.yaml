@@ -4,7 +4,8 @@ on:
   push:
     branches:
       - master
-      - '!dev'
+    branches-ignore:
+      - dev
 
 jobs:
   build-and-push:
