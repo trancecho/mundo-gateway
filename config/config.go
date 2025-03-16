@@ -2,6 +2,7 @@ package config
 
 import (
 	"errors"
+	"flag"
 	"github.com/spf13/viper"
 )
 
@@ -20,11 +21,20 @@ func NewConfig() *Config {
 	return &Config{}
 }
 
-// Init 初始化配置，接收配置文件路径
+// 初始化配置，接收配置文件路径
 func (c *Config) Init() error {
-	configPath := "./config/config.yaml"
-	c.configPath = configPath
-	viper.SetConfigFile(configPath)
+	mode := flag.String("mode", "dev", "运行模式")
+	flag.Parse()
+	if *mode == "dev" {
+		viper.SetConfigName("config.dev")
+	} else if *mode == "prod" {
+		viper.SetConfigName("config.prod")
+	} else if *mode == "docker" {
+		viper.SetConfigName("config.docker")
+	} else {
+		return errors.New("无效的运行模式")
+	}
+	viper.AddConfigPath("config")
 	viper.SetConfigType("yaml")
 
 	if err := viper.ReadInConfig(); err != nil {

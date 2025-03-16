@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mundo-gateway
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mundo-gateway
+  template:
+    metadata:
+      labels:
+        app: mundo-gateway
+    spec:
+      containers:
+        - name: mundo-gateway
+          image: k3s.altar-echo.top/mundo/mundo-gateway:latest  # 会被 sed 替换为实际镜像
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 12388
+#            - containerPort: 15666
+          volumeMounts:
+            - name: config-volume
+              mountPath: /config/config.prod.yaml
+              subPath: config.prod.yaml
+          args: ["/main","--mode=prod"]
+      imagePullSecrets:
+        - name: my-registry-key
+      volumes:
+        - name: config-volume
+          configMap:
+            name: mundo-gateway-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mundo-gateway-service
+spec:
+  selector:
+    app: mundo-gateway
+  ports:
+    - protocol: TCP
+      name: http-port
+      port: 12388
+      targetPort: 12388
+      nodePort:  12388
+  type: NodePort
