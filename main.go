@@ -2,8 +2,10 @@ package main
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/spf13/viper"
 	"github.com/trancecho/mundo-gateway/config"
 	"github.com/trancecho/mundo-gateway/controller"
+	"github.com/trancecho/mundo-gateway/routes"
 	"log"
 )
 
@@ -26,8 +28,8 @@ func main() {
 	r.Use(gin.Logger())
 	r.Use(gin.Recovery())
 
-	MakeRoutes(r)
+	routes.MakeRoutes(r)
 
 	// 启动服务器
-	log.Fatal(r.Run(":12388"))
+	log.Fatal(r.Run(":" + viper.GetString("server.port")))
 }
