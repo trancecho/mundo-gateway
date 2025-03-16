@@ -1,0 +1,78 @@
+name: Mundo-Gateway CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: '1.23'
+
+      - name: Debug SSH Connection
+        run: |
+          echo "Server User: ${{ secrets.SERVER_USER }}"
+          echo "Server Host: ${{ secrets.SERVER_HOST }}"
+
+      - name: Set up Git for private repo access
+        run: |
+          git config --global url."https://${{ secrets.GH_TOKEN }}@github.com/".insteadOf "https://github.com/"
+          echo "GOPRIVATE=github.com/kll-svg/*" >> $GITHUB_ENV
+
+      - name: Clean Go Cache
+        run: |
+          go clean -modcache
+          rm -rf go.sum
+
+      - name: Install dependencies
+        run: |
+          go mod tidy
+          go mod download
+
+      - name: Build Go application
+        run: |
+          go build -ldflags "-s -w" -o ./mundo-gateway ./cmd
+          go build -ldflags "-s -w" -o ./test/grpcping/pingMock ./test/grpcping/pingMock.go
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Deploy to server
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
+          set -e
+          echo "==== 停止旧的 mundo-gateway 容器 ===="
+          cd /root/mundo-gateway
+          docker-compose down || true
+          EOF
+
+          scp -o StrictHostKeyChecking=no ./mundo-gateway ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/root/mundo-gateway/mundo-gateway
+
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
+          set -e
+          echo "==== 赋予新二进制文件执行权限 ===="
+          cd /root/mundo-gateway
+          chmod +x ./mundo-gateway
+          echo "==== 重新启动 mundo-gateway 容器 ===="
+          docker-compose up -d --build
+          EOF
+
+
+
+
+
+
+
+
+
