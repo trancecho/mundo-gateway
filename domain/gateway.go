@@ -31,7 +31,7 @@ func NewGateway() *Gateway {
 	// 会自己注册一个地址的。
 	var db *gorm.DB
 	pwd := config.GlobalConfig.Mysql.Pwd
-	dsn := "root:" + pwd + "@tcp(" + viper.GetString("mysql.host") + ":13306)/md_gateway?charset=utf8mb4&parseTime=True&loc=Local"
+	dsn := "root:" + pwd + "@tcp(" + viper.GetString("mysql.host") + ":" + viper.GetString("mysql.port") + ")/md_gateway?charset=utf8mb4&parseTime=True&loc=Local"
 	db, err = gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
 		log.Fatalln("failed to connect database", err)
