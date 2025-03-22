@@ -21,7 +21,7 @@ func main() {
 	if err != nil {
 		log.Fatal("配置文件加载失败", err)
 	}
-	log.Println(cfg.Mysql)
+	log.Println(viper.GetString("mysql.host") + ":" + viper.GetString("mysql.port"))
 
 	controller.InitGateway()
 	r := gin.New()

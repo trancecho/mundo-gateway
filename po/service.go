@@ -18,6 +18,7 @@ type Service struct {
 	APIs     []API  `gorm:"foreignKey:ServiceId" json:"APIs"`
 	//GrpcAPIs  []GrpcAPI `gorm:"foreignKey:ApiId" json:"grpc_apis"`
 	Addresses []Address `gorm:"foreignKey:ServiceId" json:"addresses"`
+	Available bool      `json:"available"` // 是否可用
 }
 
 //type Prefix struct {

@@ -196,22 +196,26 @@ func ServiceAliveSignalController(c *gin.Context) {
 			util.ServerError(c, 200, "服务心跳失败")
 			return
 		}
+		if boPtr.GetAddressBO(req.Address) == nil {
+			util.ServerError(c, 300, "服务地址不存在")
+			return
+		}
 		// 更新服务的心跳时间
 		boPtr.GetAddressBO(req.Address).LastBeat = time.Now()
-		log.Println("服务心跳成功", req)
+		log.Println("服务心跳成功", req.Address, req.ServiceName)
 	}
 }
 
 func ServiceAliveChecker() {
 	// 定时检查服务的心跳
-	ticker := time.NewTicker(5 * time.Second)
+	ticker := time.NewTicker(3 * time.Minute)
 	for {
 		select {
 		case <-ticker.C:
 			for _, serviceBO := range domain.GatewayGlobal.Services {
 				for _, address := range serviceBO.Addresses {
-					// 如果服务超过10秒没有心跳，则认为服务不可用
-					if time.Since(address.LastBeat) > 10*time.Second {
+					// 如果服务超过30秒没有心跳，则认为服务不可用
+					if time.Since(address.LastBeat) > 3*time.Minute {
 						log.Println("服务不可用", serviceBO.Name, address.Address)
 						// 删除服务地址
 						domain.UnregisterServiceService(serviceBO.Name, address.Address)
