@@ -3,6 +3,7 @@ package domain
 import (
 	"github.com/trancecho/mundo-gateway/controller/dto"
 	"github.com/trancecho/mundo-gateway/po"
+	"gorm.io/gorm"
 	"log"
 	"time"
 )
@@ -12,7 +13,7 @@ type ServiceBO struct {
 	ServicePOId int64
 	Prefix      string
 	Name        string
-	Addresses   []Address
+	Addresses   []*Address
 	APIs        []APIBO
 	Protocol    string
 	curAddress  int64
@@ -46,51 +47,84 @@ func GetServiceBO(name string) *ServiceBO {
 func (s *ServiceBO) GetAddressBO(address string) *Address {
 	for _, addr := range s.Addresses {
 		if addr.Address == address {
-			return &addr
+			return addr
 		}
 	}
 	return nil
 }
 
 func UnregisterServiceService(name string, address string) bool {
-	// 删除对应service的对应addr（只有一个，如果addr是最后一个，那么该service也删除
-	var err error
+	// 开启事务
+	tx := GatewayGlobal.DB.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+			log.Println("事务回滚，发生错误:", r)
+		}
+	}()
+
+	// 根据 name 查找 service
 	var servicePO po.Service
-	servicePO.Name = name
-	// 根据name查找service
-	affected := GatewayGlobal.DB.Where("name = ?", servicePO.Name).
-		Find(&servicePO).RowsAffected
-	if affected == 0 {
-		log.Println("服务不存在")
+	if err := tx.Where("name = ?", name).First(&servicePO).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			log.Println("服务不存在:", name)
+		} else {
+			log.Println("查询服务失败:", err)
+		}
+		tx.Rollback()
 		return false
 	}
-	// 删除地址
+
+	// 根据 service_id 和 address 查找 addresses
 	var addresses []po.Address
-	GatewayGlobal.DB.Where("service_id = ? and address = ?", servicePO.ID, address).
-		Find(&addresses)
+	if err := tx.Where("service_id = ? AND address = ?", servicePO.ID, address).Find(&addresses).Error; err != nil {
+		log.Println("查询地址失败:", err)
+		tx.Rollback()
+		return false
+	}
+
 	if len(addresses) == 0 {
-		log.Println("地址不存在")
+		log.Println("地址不存在:", address)
+		tx.Rollback()
 		return false
 	}
-	err = GatewayGlobal.DB.Delete(&addresses).Error
-	if err != nil {
-		log.Println("地址删除失败", err)
+
+	// 删除地址记录
+	if err := tx.Where("service_id = ? AND address = ?", servicePO.ID, address).Delete(&po.Address{}).Error; err != nil {
+		log.Println("删除地址失败:", err)
+		tx.Rollback()
 		return false
 	}
-	GatewayGlobal.FlushGateway()
-	log.Println(len(addresses))
-	// 如果地址列表是最后一个地址，删除service
-	if len(addresses) == 1 {
-		err = GatewayGlobal.DB.Delete(&servicePO).Error
-		if err != nil {
-			log.Println("服务删除失败", err)
+
+	// 检查是否还有其它地址
+	var remainingAddresses []po.Address
+	if err := tx.Where("service_id = ?", servicePO.ID).Find(&remainingAddresses).Error; err != nil {
+		log.Println("查询剩余地址失败:", err)
+		tx.Rollback()
+		return false
+	}
+
+	// 如果地址列表是最后一个地址，删除 service
+	if len(remainingAddresses) == 0 {
+		if err := tx.Where("id = ?", servicePO.ID).Delete(&po.Service{}).Error; err != nil {
+			log.Println("删除服务失败:", err)
+			tx.Rollback()
 			return false
 		}
 	}
+
+	// 提交事务
+	if err := tx.Commit().Error; err != nil {
+		log.Println("提交事务失败:", err)
+		tx.Rollback()
+		return false
+	}
+
+	// 更新内存中的数据
 	GatewayGlobal.FlushGateway()
-	//apis和grpcmeata会在数据库中缓存，下一次连接直接diff算法。
-	// 删除成功
-	log.Println("服务地址删除成功", servicePO.Name, address)
+
+	// 日志记录
+	log.Println("服务地址删除成功:", servicePO.Name, address)
 	return true
 }
 
@@ -109,6 +143,13 @@ func CreateServiceService(dto *dto.ServiceCreateReq) (*po.Service, bool) {
 		// 找其地址列表
 		var addresses []po.Address
 		GatewayGlobal.DB.Where("service_id = ?", servicePO.ID).Find(&addresses)
+		// 查看是否有该地址
+		for _, address := range addresses {
+			if address.Address == dto.Address {
+				log.Println("地址已存在")
+				return nil, false
+			}
+		}
 		addresses = append(addresses, po.Address{ServiceId: servicePO.ID, Address: dto.Address})
 		// 更新地址列表
 		err = GatewayGlobal.DB.Save(&addresses).Error

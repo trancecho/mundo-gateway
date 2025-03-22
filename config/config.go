@@ -10,10 +10,6 @@ var GlobalConfig *Config
 
 // Config 定义配置结构体
 type Config struct {
-	Mysql struct {
-		Pwd string `mapstructure:"pwd"`
-	} `mapstructure:"mysql"`
-	configPath string
 }
 
 // NewConfig 创建配置实例
@@ -42,10 +38,6 @@ func (c *Config) Init() error {
 			return errors.New("配置文件未找到")
 		}
 		return errors.New("读取配置文件出错: " + err.Error())
-	}
-
-	if err := viper.Unmarshal(c); err != nil {
-		return errors.New("解析配置文件出错: " + err.Error())
 	}
 	return nil
 }

@@ -2,7 +2,6 @@ package domain
 
 import (
 	"github.com/spf13/viper"
-	"github.com/trancecho/mundo-gateway/config"
 	"log"
 	"net/http"
 	"sync"
@@ -30,7 +29,7 @@ func NewGateway() *Gateway {
 	var err error
 	// 会自己注册一个地址的。
 	var db *gorm.DB
-	pwd := config.GlobalConfig.Mysql.Pwd
+	pwd := viper.GetString("mysql.pwd")
 	dsn := "root:" + pwd + "@tcp(" + viper.GetString("mysql.host") + ":" + viper.GetString("mysql.port") + ")/md_gateway?charset=utf8mb4&parseTime=True&loc=Local"
 	db, err = gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
@@ -57,9 +56,9 @@ func NewGateway() *Gateway {
 	// 初始化全局services列表
 	var serviceBOs []ServiceBO
 	for _, service := range services {
-		var addresses []Address
+		var addresses []*Address
 		for _, address := range service.Addresses {
-			addresses = append(addresses, Address{address.Address, time.Now()})
+			addresses = append(addresses, &Address{address.Address, time.Now()})
 		}
 
 		// 转换 APIs
@@ -116,10 +115,11 @@ func (g *Gateway) FlushGateway() {
 	// 初始化全局services列表
 	var serviceBOs []ServiceBO
 	for _, service := range servicesPO {
-		var addresses []Address
+		var addresses []*Address
 		for _, address := range service.Addresses {
-			addresses = append(addresses, Address{address.Address, time.Now()})
+			addresses = append(addresses, &Address{address.Address, time.Now()})
 		}
+		log.Println("addresses:", addresses)
 
 		// 转换 APIs
 		var apis []APIBO
