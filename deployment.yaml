@@ -24,9 +24,9 @@ spec:
               mountPath: /config/config.prod.yaml
               subPath: config.prod.yaml
           args: ["/main","--mode=prod"]
-      nodeSelector:
-#        app: hk
-        app: master
+#      nodeSelector:
+##        app: hk
+#        app: master
       imagePullSecrets:
         - name: my-registry-key
       volumes:
