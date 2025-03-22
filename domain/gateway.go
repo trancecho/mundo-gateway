@@ -57,9 +57,9 @@ func NewGateway() *Gateway {
 	// 初始化全局services列表
 	var serviceBOs []ServiceBO
 	for _, service := range services {
-		var addresses []string
+		var addresses []Address
 		for _, address := range service.Addresses {
-			addresses = append(addresses, address.Address)
+			addresses = append(addresses, Address{address.Address, time.Now()})
 		}
 
 		// 转换 APIs
@@ -116,9 +116,9 @@ func (g *Gateway) FlushGateway() {
 	// 初始化全局services列表
 	var serviceBOs []ServiceBO
 	for _, service := range servicesPO {
-		var addresses []string
+		var addresses []Address
 		for _, address := range service.Addresses {
-			addresses = append(addresses, address.Address)
+			addresses = append(addresses, Address{address.Address, time.Now()})
 		}
 
 		// 转换 APIs

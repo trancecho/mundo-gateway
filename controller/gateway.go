@@ -3,8 +3,6 @@ package controller
 import (
 	"fmt"
 	"log"
-	"net/http/httputil"
-	"net/url"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -12,14 +10,14 @@ import (
 	"github.com/trancecho/mundo-gateway/util"
 )
 
-// 创建反向代理
-func createReverseProxy(target string) (*httputil.ReverseProxy, error) {
-	urlx, err := url.Parse(target)
-	if err != nil {
-		return nil, err
-	}
-	return httputil.NewSingleHostReverseProxy(urlx), nil
-}
+//// 创建反向代理
+//func createReverseProxy(target string) (*httputil.ReverseProxy, error) {
+//	urlx, err := url.Parse(target)
+//	if err != nil {
+//		return nil, err
+//	}
+//	return httputil.NewSingleHostReverseProxy(urlx), nil
+//}
 
 func HandleRequestController(c *gin.Context) {
 	var err error
@@ -56,9 +54,9 @@ func HandleRequestController(c *gin.Context) {
 	}
 	c.Request.URL.Path = path
 	fmt.Println("访问路由：", "c.Request.URL.Path:", c.Request.URL.Path, "method:", method, "prefix:", prefix)
-	// 尝试直接从缓存拿服务
+	//尝试直接从缓存拿服务
 	//var servicePO po.Service
-	// 找到可用服务地址
+	//找到可用服务地址
 	//affected := domain.GatewayGlobal.DB.Preload("APIs").Preload("Addresses").First(&servicePO, "prefix = ?", prefix).RowsAffected
 	//if affected == 0 {
 	//	log.Println("未找到注册服务记录")

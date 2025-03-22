@@ -34,7 +34,7 @@ func CreateAPIController(c *gin.Context) {
 	// 创建API
 	apiPO, err := domain.CreateAPIService(&req)
 	if err != nil {
-		util.ServerError(c, 4, "API创建失败:"+err.Error())
+		util.ServerError(c, 200, "API创建失败:"+err.Error())
 		return
 	}
 	domain.GatewayGlobal.FlushGateway()

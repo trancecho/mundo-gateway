@@ -7,6 +7,10 @@ type ServiceCreateReq struct {
 	Address  string `json:"address"`
 }
 
+type ServiceBeatReq struct {
+	ServiceName string `json:"service_name"`
+	Address     string `json:"address"`
+}
 type ServiceUpdateReq struct {
 	Id       int64  `json:"id"`
 	Name     string `json:"name"`

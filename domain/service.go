@@ -4,6 +4,7 @@ import (
 	"github.com/trancecho/mundo-gateway/controller/dto"
 	"github.com/trancecho/mundo-gateway/po"
 	"log"
+	"time"
 )
 
 // ServiceBO BO 业务对象
@@ -11,7 +12,7 @@ type ServiceBO struct {
 	ServicePOId int64
 	Prefix      string
 	Name        string
-	Addresses   []string
+	Addresses   []Address
 	APIs        []APIBO
 	Protocol    string
 	curAddress  int64
@@ -30,7 +31,67 @@ func (s *ServiceBO) GetNextAddress() string {
 	}
 	address := s.Addresses[s.curAddress]
 	s.curAddress++
-	return address
+	return address.Address
+}
+
+func GetServiceBO(name string) *ServiceBO {
+	for _, service := range GatewayGlobal.Services {
+		if service.Name == name {
+			return &service
+		}
+	}
+	return nil
+}
+
+func (s *ServiceBO) GetAddressBO(address string) *Address {
+	for _, addr := range s.Addresses {
+		if addr.Address == address {
+			return &addr
+		}
+	}
+	return nil
+}
+
+func UnregisterServiceService(name string, address string) bool {
+	// 删除对应service的对应addr（只有一个，如果addr是最后一个，那么该service也删除
+	var err error
+	var servicePO po.Service
+	servicePO.Name = name
+	// 根据name查找service
+	affected := GatewayGlobal.DB.Where("name = ?", servicePO.Name).
+		Find(&servicePO).RowsAffected
+	if affected == 0 {
+		log.Println("服务不存在")
+		return false
+	}
+	// 删除地址
+	var addresses []po.Address
+	GatewayGlobal.DB.Where("service_id = ? and address = ?", servicePO.ID, address).
+		Find(&addresses)
+	if len(addresses) == 0 {
+		log.Println("地址不存在")
+		return false
+	}
+	err = GatewayGlobal.DB.Delete(&addresses).Error
+	if err != nil {
+		log.Println("地址删除失败", err)
+		return false
+	}
+	GatewayGlobal.FlushGateway()
+	log.Println(len(addresses))
+	// 如果地址列表是最后一个地址，删除service
+	if len(addresses) == 1 {
+		err = GatewayGlobal.DB.Delete(&servicePO).Error
+		if err != nil {
+			log.Println("服务删除失败", err)
+			return false
+		}
+	}
+	GatewayGlobal.FlushGateway()
+	//apis和grpcmeata会在数据库中缓存，下一次连接直接diff算法。
+	// 删除成功
+	log.Println("服务地址删除成功", servicePO.Name, address)
+	return true
 }
 
 // 创建服务
@@ -198,7 +259,6 @@ type Prefix struct {
 }
 
 type Address struct {
-	Id        int64
-	ServiceId int64
-	Address   string
+	Address  string
+	LastBeat time.Time
 }

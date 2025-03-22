@@ -17,6 +17,7 @@ func MakeRoutes(r *gin.Engine) {
 	r.DELETE("/gateway/service/address", controller.DeleteServiceAddressController)
 	r.GET("/gateway/service", controller.GetServiceController)
 	r.GET("/gateway/service/list", controller.ListServiceController)
+	r.POST("/gateway/service/beat", controller.ServiceAliveSignalController)
 
 	// API
 	r.POST("/gateway/api", controller.CreateAPIController)

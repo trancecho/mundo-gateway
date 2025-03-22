@@ -8,6 +8,7 @@ import (
 	"log"
 	"strconv"
 	"strings"
+	"time"
 )
 
 //type ServiceDTO struct {
@@ -180,4 +181,43 @@ func GetServiceController(c *gin.Context) {
 	util.Ok(c, "服务获取成功", gin.H{
 		"service": service,
 	})
+}
+
+// 服务心跳
+func ServiceAliveSignalController(c *gin.Context) {
+	var req dto.ServiceBeatReq
+	c.ShouldBindJSON(&req)
+	if req.ServiceName == "" || req.Address == "" {
+		util.ServerError(c, 100, "服务名和地址不能为空")
+		return
+	} else {
+		boPtr := domain.GetServiceBO(req.ServiceName)
+		if boPtr == nil {
+			util.ServerError(c, 200, "服务心跳失败")
+			return
+		}
+		// 更新服务的心跳时间
+		boPtr.GetAddressBO(req.Address).LastBeat = time.Now()
+		log.Println("服务心跳成功", req)
+	}
+}
+
+func ServiceAliveChecker() {
+	// 定时检查服务的心跳
+	ticker := time.NewTicker(5 * time.Second)
+	for {
+		select {
+		case <-ticker.C:
+			for _, serviceBO := range domain.GatewayGlobal.Services {
+				for _, address := range serviceBO.Addresses {
+					// 如果服务超过10秒没有心跳，则认为服务不可用
+					if time.Since(address.LastBeat) > 10*time.Second {
+						log.Println("服务不可用", serviceBO.Name, address.Address)
+						// 删除服务地址
+						domain.UnregisterServiceService(serviceBO.Name, address.Address)
+					}
+				}
+			}
+		}
+	}
 }
