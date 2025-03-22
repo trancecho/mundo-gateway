@@ -24,6 +24,9 @@ spec:
               mountPath: /config/config.prod.yaml
               subPath: config.prod.yaml
           args: ["/main","--mode=prod"]
+      nodeSelector:
+#        app: hk
+        app: master
       imagePullSecrets:
         - name: my-registry-key
       volumes:
@@ -41,7 +44,7 @@ spec:
   ports:
     - protocol: TCP
       name: http-port
-      port: 12388
+      port: 80 #  # 只能是 80，注意避雷
       targetPort: 12388
-      nodePort:  12388
-  type: NodePort
+#      nodePort:  12388
+  type: ClusterIP

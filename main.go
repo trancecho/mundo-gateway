@@ -30,6 +30,9 @@ func main() {
 
 	routes.MakeRoutes(r)
 
+	go func() {
+		controller.ServiceAliveChecker()
+	}()
 	// 启动服务器
 	log.Fatal(r.Run(":" + viper.GetString("server.port")))
 }
