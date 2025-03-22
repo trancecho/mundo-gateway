@@ -44,7 +44,7 @@ func NewGateway() *Gateway {
 
 	// c初始化service列表
 	var services []po.Service
-	db.Preload("Addresses").Preload("APIs.GrpcMethodMeta").
+	db.Preload("Addresses").Preload("APIs.GrpcMethodMeta").Where("available=?", true).
 		Find(&services)
 	log.Println("services:", services)
 	var prefixes []Prefix
@@ -110,7 +110,7 @@ func (g *Gateway) FlushGateway() {
 	// todo 可以优化
 	// 重新获取service列表
 	var servicesPO []po.Service
-	g.DB.Preload("Addresses").Preload("APIs").
+	g.DB.Preload("Addresses").Preload("APIs").Where("available=?", true).
 		Find(&servicesPO)
 	// 初始化全局services列表
 	var serviceBOs []ServiceBO

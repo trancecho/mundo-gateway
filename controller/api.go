@@ -25,7 +25,7 @@ func CreateAPIController(c *gin.Context) {
 	}
 
 	// 检查是否已存在相同的路径和方法,这里开始写bug
-	existingAPI, err := domain.GetAPIByPathAndMethod(req.Path, req.Method)
+	existingAPI, err := domain.GetAPIByPathAndMethod(req.Path, req.Method, req.ServiceName)
 	if err == nil && existingAPI != nil {
 		util.ClientError(c, 10100, "API路径和方法已存在")
 		return
