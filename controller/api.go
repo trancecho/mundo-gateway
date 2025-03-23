@@ -40,7 +40,7 @@ func CreateAPIController(c *gin.Context) {
 	domain.GatewayGlobal.FlushGateway()
 
 	util.Ok(c, "API创建成功", gin.H{
-		"api": apiPO,
+		"api": *apiPO,
 	})
 }
 

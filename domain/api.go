@@ -204,28 +204,23 @@ func ListAPIService() ([]*po.API, error) {
 
 // GetAPIByPathAndMethod 检查数据库中是否已存在相同路径和方法的 API
 func GetAPIByPathAndMethod(path string, method string, serviceName string) (*po.API, error) {
-	var apiPO po.API
 	db := GatewayGlobal.DB
+	// 查询serviceName对应的id
+	var servicePO po.Service
+	affected := db.Where("name = ?", serviceName).
+		First(&servicePO).RowsAffected
+	if affected == 0 {
+		// 如果没有找到对应的服务，返回 nil
+		return nil, nil
+	}
+	var apiPO po.API
 
 	// 查询数据库中是否存在相同路径和方法的 API
-	affected := db.Where("http_path = ? AND http_method = ?", path, method).
+	affected = db.Where("http_path = ? AND http_method = ? and service_id=?", path, method, servicePO.ID).
 		First(&apiPO).RowsAffected
 
 	// 如果存在，更新service_id并返回该 API
 	if affected > 0 {
-		//// 更新 service_id
-		//var servicePO po.Service
-		//affected = db.Where("name = ?", serviceName).
-		//	First(&servicePO).RowsAffected
-		//if affected == 0 {
-		//	return nil, errors.New("服务不存在")
-		//}
-		//apiPO.ServiceId = servicePO.ID
-		//err := db.Save(&apiPO).Error
-		//if err != nil {
-		//	log.Println("更新API失败", err)
-		//	return nil, err
-		//}
 		return &apiPO, nil
 	}
 
