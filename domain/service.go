@@ -104,10 +104,12 @@ func UnregisterServiceService(name string, address string) bool {
 		return false
 	}
 
-	// 如果地址列表是最后一个地址，删除 service
+	// 如果地址列表是最后一个地址，将 service 的 available 字段置为 false
 	if len(remainingAddresses) == 0 {
-		if err := tx.Where("id = ?", servicePO.ID).Delete(&po.Service{}).Error; err != nil {
-			log.Println("删除服务失败:", err)
+		if err := tx.Model(&po.Service{}).
+			Where("id = ?", servicePO.ID).
+			Update("available", false).Error; err != nil {
+			log.Println("更新服务状态失败:", err)
 			tx.Rollback()
 			return false
 		}
@@ -140,6 +142,10 @@ func CreateServiceService(dto *dto.ServiceCreateReq) (*po.Service, bool) {
 	log.Println("affected", affected, servicePO)
 	// 如果 name 已经存在，说明是更新地址。
 	if affected > 0 {
+		// 激活已存在的
+		if servicePO.Available == false {
+			GatewayGlobal.DB.Model(&po.Service{}).Where("id = ?", servicePO.ID).Update("available", true)
+		}
 		// 找其地址列表
 		var addresses []po.Address
 		GatewayGlobal.DB.Where("service_id = ?", servicePO.ID).Find(&addresses)

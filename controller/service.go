@@ -62,6 +62,7 @@ func CreateServiceController(c *gin.Context) {
 
 	servicePO, ok := domain.CreateServiceService(&req)
 	if !ok {
+		domain.GatewayGlobal.FlushGateway()
 		util.ServerError(c, 4, "服务创建失败")
 		return
 	}
@@ -208,14 +209,14 @@ func ServiceAliveSignalController(c *gin.Context) {
 
 func ServiceAliveChecker() {
 	// 定时检查服务的心跳
-	ticker := time.NewTicker(3 * time.Minute)
+	ticker := time.NewTicker(30 * time.Second)
 	for {
 		select {
 		case <-ticker.C:
 			for _, serviceBO := range domain.GatewayGlobal.Services {
 				for _, address := range serviceBO.Addresses {
 					// 如果服务超过30秒没有心跳，则认为服务不可用
-					if time.Since(address.LastBeat) > 3*time.Minute {
+					if time.Since(address.LastBeat) > 30*time.Second {
 						log.Println("服务不可用", serviceBO.Name, address.Address)
 						// 删除服务地址
 						domain.UnregisterServiceService(serviceBO.Name, address.Address)
