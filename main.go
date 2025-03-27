@@ -5,6 +5,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/trancecho/mundo-gateway/config"
 	"github.com/trancecho/mundo-gateway/controller"
+	"github.com/trancecho/mundo-gateway/middle"
 	"github.com/trancecho/mundo-gateway/routes"
 	"log"
 )
@@ -27,6 +28,7 @@ func main() {
 	r := gin.New()
 	r.Use(gin.Logger())
 	r.Use(gin.Recovery())
+	r.Use(middle.Middleware())
 
 	routes.MakeRoutes(r)
 
