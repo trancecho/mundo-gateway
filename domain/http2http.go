@@ -11,13 +11,13 @@ import (
 func HTTPProxyHandler(c *gin.Context, err error, address string, serviceName string) {
 	// 手动实现http代理请求
 	// 构造代理请求，输入参数为：方法、地址、请求体
-	proxyReq, err := http.NewRequest(c.Request.Method, address+c.Request.URL.Path, c.Request.Body)
+	proxyReq, err := http.NewRequest(c.Request.Method, address+c.Request.URL.Path+"?"+c.Request.URL.RawQuery, c.Request.Body)
 	if err != nil {
 		util.ServerError(c, 2, "创建请求失败")
 		return
 	}
-	// 请求的query参数
-	proxyReq.URL.RawQuery = c.Request.URL.RawQuery
+	//// 请求的query参数
+	//proxyReq.URL.RawQuery = c.Request.URL.RawQuery
 
 	// 将原始请求头复制到代理请求
 	for key, values := range c.Request.Header {
