@@ -164,12 +164,21 @@ func CreateServiceService(dto *dto.ServiceCreateReq) (*po.Service, bool) {
 			return nil, false
 		}
 
+		// ✅ 加载地址（这是关键补充步骤）
+		err = GatewayGlobal.DB.Preload("Addresses").
+			Where("id = ?", servicePO.ID).First(&servicePO).Error
+		if err != nil {
+			log.Println("刷新地址失败", err)
+			return nil, false
+		}
+
 		//更新po的地址列表
 		servicePO.Addresses = addresses
 	} else {
 		// 说明没有service，需要新建
 		servicePO.Prefix = dto.Prefix
 		servicePO.Protocol = dto.Protocol
+		servicePO.Available = true
 		servicePO.Addresses = []po.Address{{Address: dto.Address}}
 		// 创建service
 		err = GatewayGlobal.DB.Create(&servicePO).Error
