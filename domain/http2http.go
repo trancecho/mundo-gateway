@@ -16,6 +16,8 @@ func HTTPProxyHandler(c *gin.Context, err error, address string, serviceName str
 		util.ServerError(c, 2, "创建请求失败")
 		return
 	}
+	// 请求的query参数
+	proxyReq.URL.RawQuery = c.Request.URL.RawQuery
 
 	// 将原始请求头复制到代理请求
 	for key, values := range c.Request.Header {
