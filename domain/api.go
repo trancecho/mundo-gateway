@@ -192,13 +192,28 @@ func DeleteAPIService(id int64) error {
 }
 
 // ListAPIService 获取API列表
-func ListAPIService() ([]*po.API, error) {
+func ListAPIService(serviceName string) ([]*po.API, error) {
 	var apiPOs []*po.API
 	db := GatewayGlobal.DB
-	err := db.Find(&apiPOs).Error
-	if err != nil {
-		return nil, err
+	if serviceName == "all" {
+		err := db.Find(&apiPOs).Error
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		var servicePO po.Service
+		// 查询serviceName对应的id
+		affected := db.Where("name = ?", serviceName).
+			First(&servicePO).RowsAffected
+		if affected == 0 {
+			return nil, errors.New("服务不存在")
+		}
+		err := db.Where("service_id = ?", servicePO.ID).Find(&apiPOs).Error
+		if err != nil {
+			return nil, err
+		}
 	}
+
 	return apiPOs, nil
 }
 

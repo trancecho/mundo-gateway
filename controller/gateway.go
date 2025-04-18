@@ -49,7 +49,7 @@ func HandleRequestController(c *gin.Context) {
 		}
 	}
 	if !prefixOkFlag {
-		util.ClientError(c, 200, "prefix不合法")
+		util.ClientError(c, 200, "prefix不合法或服务挂了")
 		return
 	}
 	c.Request.URL.Path = path
@@ -76,13 +76,27 @@ func HandleRequestController(c *gin.Context) {
 	}
 	var apiBO *domain.APIBO
 	// 寻找服务方法和路由都匹配的API，如果没有就拦截(默认grpc服务也有http路由，apibo是http2grpc的映射)
+	//
+	//但是对于"/:xx/"的路由，需要进行特殊处理
 	for _, api := range serviceBO.APIs {
 		log.Println("api", api, "method", method, "path", path)
-		if api.HttpMethod == method && api.HttpPath == path {
+
+		// 先判断方法
+		if api.HttpMethod != method {
+			continue
+		}
+
+		// 精确匹配优先
+		if api.HttpPath == path {
 			apiBO = &api
 			break
 		}
 
+		// 尝试模糊匹配 /user/:id -> /user/123
+		if isPathMatch(api.HttpPath, path) {
+			apiBO = &api
+			break
+		}
 	}
 
 	//log.Println(serviceBO)
@@ -114,4 +128,26 @@ func FlushAPIController(c *gin.Context) {
 	// 重新加载API
 	domain.GatewayGlobal.FlushGateway()
 	util.Ok(c, "网关刷新成功", nil)
+}
+
+// isPathMatch 用于支持带参数的路径匹配，例如 /user/:id 匹配 /user/123
+func isPathMatch(routePath, actualPath string) bool {
+	routeParts := strings.Split(routePath, "/")
+	pathParts := strings.Split(actualPath, "/")
+
+	if len(routeParts) != len(pathParts) {
+		return false
+	}
+
+	for i := 0; i < len(routeParts); i++ {
+		// 如果是 : 开头，认为是参数位，跳过
+		if strings.HasPrefix(routeParts[i], ":") {
+			continue
+		}
+		// 如果实际路径不一致就不匹配
+		if routeParts[i] != pathParts[i] {
+			return false
+		}
+	}
+	return true
 }
