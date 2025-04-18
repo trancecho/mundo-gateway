@@ -116,7 +116,12 @@ func GetAPIController(c *gin.Context) {
 
 func ListAPIController(c *gin.Context) {
 	// 获取API列表
-	apis, err := domain.ListAPIService()
+	// 添加一个列出指定服务的API列表
+	serviceName := c.Query("serviceName")
+	if serviceName == "" {
+		serviceName = "all"
+	}
+	apis, err := domain.ListAPIService(serviceName)
 	if err != nil {
 		util.ServerError(c, 5, "API列表获取失败")
 		return
