@@ -2,30 +2,31 @@ package main
 
 import (
 	"context"
-	pb "github.com/trancecho/mundo-gateway/test/grpc_b/v1"
+	"github.com/trancecho/mundo-gateway/test/ping/v1"
 	"google.golang.org/grpc"
 	"log"
 	"net"
 )
 
 type serverB struct {
-	pb.UnimplementedPingServiceServer
+	grpcpingv1.UnimplementedPingServiceServer
 }
 
-func (s *serverB) Ping(ctx context.Context, req *pb.PingRequest) (*pb.PingResponse, error) {
-	return &pb.PingResponse{
+func (s *serverB) Ping(ctx context.Context, req *grpcpingv1.PingRequest) (*grpcpingv1.PingResponse, error) {
+	return &grpcpingv1.PingResponse{
 		Message: "pong",
 	}, nil
 }
 
 func main() {
 	server := grpc.NewServer()
-	pb.RegisterPingServiceServer(server, &serverB{})
+	grpcpingv1.RegisterPingServiceServer(server, &serverB{})
 	listener, err := net.Listen("tcp", ":50052")
 	if err != nil {
 		log.Println("failed to listen:", err)
 		return
 	}
+	log.Printf("server listening at %v", listener.Addr())
 	if err := server.Serve(listener); err != nil {
 		log.Println("failed to serve:", err)
 		return
