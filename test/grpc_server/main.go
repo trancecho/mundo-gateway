@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	sdk "github.com/trancecho/mundo-gateway-sdk"
 	"github.com/trancecho/mundo-gateway/test/ping/v1"
 	"google.golang.org/grpc"
 	"log"
@@ -19,6 +20,10 @@ func (s *serverB) Ping(ctx context.Context, req *grpcpingv1.PingRequest) (*grpcp
 }
 
 func main() {
+	gatewayClient := sdk.NewGatewaySDK("ping", "grpc://localhost:50052", "grpc", "http://localhost:12388")
+	gatewayClient.RegisterServiceAddress()
+	gatewayClient.StartHeartbeat()
+
 	server := grpc.NewServer()
 	grpcpingv1.RegisterPingServiceServer(server, &serverB{})
 	listener, err := net.Listen("tcp", ":50052")
