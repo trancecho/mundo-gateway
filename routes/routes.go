@@ -28,6 +28,9 @@ func MakeRoutes(r *gin.Engine) {
 
 	r.GET("/gateway/flush", controller.FlushAPIController)
 
+	//健康检查接口
+	r.GET("/gateway/service/health", controller.HealthStatusHandler)
+
 	// 通配符路由，排除 /gateway 前缀
 	r.NoRoute(func(c *gin.Context) {
 		// 检查路径是否以 /gateway 开头

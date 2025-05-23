@@ -58,7 +58,7 @@ func NewGateway() *Gateway {
 	for _, service := range services {
 		var addresses []*Address
 		for _, address := range service.Addresses {
-			addresses = append(addresses, &Address{address.Address, time.Now()})
+			addresses = append(addresses, &Address{address.Address, time.Now(), true})
 		}
 
 		// 转换 APIs
@@ -117,7 +117,7 @@ func (g *Gateway) FlushGateway() {
 	for _, service := range servicesPO {
 		var addresses []*Address
 		for _, address := range service.Addresses {
-			addresses = append(addresses, &Address{address.Address, time.Now()})
+			addresses = append(addresses, &Address{address.Address, time.Now(), true})
 		}
 		log.Println("addresses:", addresses)
 
@@ -154,3 +154,5 @@ func (g *Gateway) FlushGateway() {
 	g.Services = serviceBOs
 	g.Prefixes = prefixes
 }
+
+//增加服务健康检查

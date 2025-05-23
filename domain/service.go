@@ -17,6 +17,7 @@ type ServiceBO struct {
 	APIs        []APIBO
 	Protocol    string
 	curAddress  int64
+	Available   bool
 }
 
 // NewService 构造函数
@@ -315,6 +316,7 @@ type Prefix struct {
 }
 
 type Address struct {
-	Address  string
-	LastBeat time.Time
+	Address   string
+	LastBeat  time.Time
+	IsHealthy bool
 }
