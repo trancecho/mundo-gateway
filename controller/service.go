@@ -6,7 +6,6 @@ import (
 	"github.com/trancecho/mundo-gateway/domain"
 	"github.com/trancecho/mundo-gateway/util"
 	"log"
-	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -228,24 +227,27 @@ func ServiceAliveChecker() {
 	}
 }
 
-// HealthStatusHandler 返回服务的健康状态信息
+type AddressStatus struct {
+	Address   string    `json:"address"`
+	IsHealthy bool      `json:"is_healthy"`
+	LastBeat  time.Time `json:"last_beat"`
+}
+
+type ServiceStatus struct {
+	Name      string          `json:"name"`
+	Available bool            `json:"available"`
+	Addresses []AddressStatus `json:"addresses"`
+}
+
 func HealthStatusHandler(c *gin.Context) {
-	type AddressStatus struct {
-		Address   string    `json:"address"`
-		IsHealthy bool      `json:"is_healthy"`
-		LastBeat  time.Time `json:"last_beat"`
-	}
-
-	type ServiceStatus struct {
-		Name      string          `json:"name"`
-		Available bool            `json:"available"`
-		Addresses []AddressStatus `json:"addresses"`
-	}
-
 	var statuses []ServiceStatus
-
 	domain.GatewayGlobal.RWMutex.RLock()
 	defer domain.GatewayGlobal.RWMutex.RUnlock()
+
+	if domain.GatewayGlobal.Services == nil {
+		util.ServerError(c, util.DefaultError, "服务列表为空")
+		return
+	}
 
 	for _, service := range domain.GatewayGlobal.Services {
 		var addrStatuses []AddressStatus
@@ -263,5 +265,8 @@ func HealthStatusHandler(c *gin.Context) {
 		})
 	}
 
-	c.JSON(http.StatusOK, statuses)
+	//c.JSON(http.StatusOK, statuses)
+	util.Ok(c, "服务健康状态", gin.H{
+		"services": statuses,
+	})
 }
