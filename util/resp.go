@@ -61,7 +61,9 @@ func grpcToHTTPStatus(code codes.Code) int {
 }
 
 const (
-	AuthError    = "Error.Auth"
-	DefaultError = "Error.Default"
-	Success      = "Success"
+	AuthError       = "Error.Auth"
+	DefaultError    = "Error.Default"
+	QueryParamError = "Error.QueryParam"
+
+	Success = "Success"
 )

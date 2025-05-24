@@ -35,6 +35,10 @@ func CreateServiceController(c *gin.Context) {
 		util.ClientError(c, 2, "prefix不能为空")
 		return
 	}
+	if "/"+req.Name != req.Prefix {
+		util.ClientError(c, util.QueryParamError, "prefix必须为/{name}")
+		return
+	}
 	if req.Prefix == "gateway" {
 		util.ClientError(c, 300, "prefix不能为gateway ")
 	}
@@ -60,10 +64,10 @@ func CreateServiceController(c *gin.Context) {
 		return
 	}
 
-	servicePO, ok := domain.CreateServiceService(&req)
-	if !ok {
+	servicePO, ok, err := domain.CreateServiceService(&req)
+	if !ok && err != nil {
 		domain.GatewayGlobal.FlushGateway()
-		util.ServerError(c, 4, "服务创建失败")
+		util.ServerError(c, 4, "服务创建失败:"+err.Error())
 		return
 	}
 	domain.GatewayGlobal.FlushGateway()
@@ -239,7 +243,18 @@ type ServiceStatus struct {
 	Addresses []AddressStatus `json:"addresses"`
 }
 
+type HealthStatusHandlerReq struct {
+	ServiceName string `form:"service_name"`
+}
+
 func HealthStatusHandler(c *gin.Context) {
+	var req HealthStatusHandlerReq
+	c.ShouldBindQuery(&req)
+	if req.ServiceName == "" {
+		util.ClientError(c, util.QueryParamError, "service_name不能为空")
+		return
+	}
+
 	var statuses []ServiceStatus
 	domain.GatewayGlobal.RWMutex.RLock()
 	defer domain.GatewayGlobal.RWMutex.RUnlock()
@@ -264,9 +279,10 @@ func HealthStatusHandler(c *gin.Context) {
 			Addresses: addrStatuses,
 		})
 	}
+	nextAddress := domain.GetServiceBO(req.ServiceName).GetNextAddress()
 
-	//c.JSON(http.StatusOK, statuses)
 	util.Ok(c, "服务健康状态", gin.H{
 		"services": statuses,
+		"target":   nextAddress,
 	})
 }
