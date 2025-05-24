@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/golang/protobuf/proto"
+	"github.com/trancecho/mundo-gateway/po"
 	"github.com/trancecho/mundo-gateway/util"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
@@ -47,7 +48,9 @@ var (
 func GRPCProxyHandler(c *gin.Context, address string, apibo *APIBO) {
 	//address为grpc://ip:port的格式，需要去掉前缀
 	address = address[7:]
-	log.Println("啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊地址:", address)
+	log.Println("啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊地址:", address, apibo)
+	GatewayGlobal.DB.Model(&po.GrpcMethodMeta{}).Where("api_id=?", apibo.Id).First(&apibo.GrpcMethodMeta)
+	log.Println("啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊地址:", address, apibo)
 	grpcService := apibo.GrpcMethodMeta.ServiceName
 	grpcMethod := apibo.GrpcMethodMeta.MethodName
 
@@ -186,7 +189,7 @@ func handleCachedRequest(
 ) bool {
 	reqMsg := dynamicpb.NewMessage(methodDesc.Input())
 	if err := bindGRPCRequest(c, reqMsg); err != nil {
-		util.ClientError(c, 400, "请求参数错误")
+		util.ClientError(c, 400, "请求参数错误"+err.Error())
 		return false
 	}
 
