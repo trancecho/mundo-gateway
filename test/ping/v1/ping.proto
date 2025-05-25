@@ -4,7 +4,6 @@ package test.grpcping.v1;
 
 // 定义请求消息
 message PingRequest {
-  string message = 1;
 }
 
 // 定义响应消息

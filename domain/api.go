@@ -51,7 +51,7 @@ func CreateAPIService(req *dto.APICreateReq) (*po.API, error) {
 	apiPO.HttpPath = req.Path
 	apiPO.HttpMethod = req.Method
 	apiPO.ServiceId = servicePO.ID
-	affected = db.Where("service_id = ? and path = ? and method = ?", servicePO.ID, req.Path, req.Method).
+	affected = db.Where("service_id = ? and http_path = ? and method = ?", servicePO.ID, req.Path, req.Method).
 		Find(&apiPO).RowsAffected
 	if affected > 0 {
 		return nil, errors.New("API已存在")

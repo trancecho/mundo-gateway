@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"errors"
 	"github.com/trancecho/mundo-gateway/controller/dto"
 	"github.com/trancecho/mundo-gateway/po"
 	"gorm.io/gorm"
@@ -17,6 +18,7 @@ type ServiceBO struct {
 	APIs        []APIBO
 	Protocol    string
 	curAddress  int64
+	Available   bool
 }
 
 // NewService 构造函数
@@ -131,17 +133,21 @@ func UnregisterServiceService(name string, address string) bool {
 }
 
 // 创建服务
-func CreateServiceService(dto *dto.ServiceCreateReq) (*po.Service, bool) {
+func CreateServiceService(dto *dto.ServiceCreateReq) (*po.Service, bool, error) {
 	var err error
 	var servicePO po.Service
-	servicePO.Name = dto.Name
 	// 根据name查找service
-	affected := GatewayGlobal.DB.Where("name = ?", dto.Name).
+	affected := GatewayGlobal.DB.Where("prefix=?", dto.Prefix).
 		Find(&servicePO).RowsAffected
 	log.Println(dto)
 	log.Println("affected", affected, servicePO)
 	// 如果 name 已经存在，说明是更新地址。
 	if affected > 0 {
+		// 如果protocl不同，则报错
+		if servicePO.Protocol != dto.Protocol {
+			log.Println("服务协议不同")
+			return nil, false, errors.New("匹配到对应服务。但是服务协议不同")
+		}
 		// 激活已存在的
 		if servicePO.Available == false {
 			GatewayGlobal.DB.Model(&po.Service{}).Where("id = ?", servicePO.ID).Update("available", true)
@@ -153,7 +159,7 @@ func CreateServiceService(dto *dto.ServiceCreateReq) (*po.Service, bool) {
 		for _, address := range addresses {
 			if address.Address == dto.Address {
 				log.Println("地址已存在")
-				return nil, false
+				return nil, false, errors.New("地址已存在")
 			}
 		}
 		addresses = append(addresses, po.Address{ServiceId: servicePO.ID, Address: dto.Address})
@@ -161,7 +167,7 @@ func CreateServiceService(dto *dto.ServiceCreateReq) (*po.Service, bool) {
 		err = GatewayGlobal.DB.Save(&addresses).Error
 		if err != nil {
 			log.Println("服务新地址保存失败", err)
-			return nil, false
+			return nil, false, err
 		}
 
 		// ✅ 加载地址（这是关键补充步骤）
@@ -169,13 +175,14 @@ func CreateServiceService(dto *dto.ServiceCreateReq) (*po.Service, bool) {
 			Where("id = ?", servicePO.ID).First(&servicePO).Error
 		if err != nil {
 			log.Println("刷新地址失败", err)
-			return nil, false
+			return nil, false, err
 		}
 
 		//更新po的地址列表
 		servicePO.Addresses = addresses
 	} else {
 		// 说明没有service，需要新建
+		servicePO.Name = dto.Name
 		servicePO.Prefix = dto.Prefix
 		servicePO.Protocol = dto.Protocol
 		servicePO.Available = true
@@ -184,10 +191,10 @@ func CreateServiceService(dto *dto.ServiceCreateReq) (*po.Service, bool) {
 		err = GatewayGlobal.DB.Create(&servicePO).Error
 		if err != nil {
 			log.Println("服务创建失败", err)
-			return nil, false
+			return nil, false, err
 		}
 	}
-	return &servicePO, true
+	return &servicePO, true, nil
 }
 
 // 更新服务
@@ -315,6 +322,7 @@ type Prefix struct {
 }
 
 type Address struct {
-	Address  string
-	LastBeat time.Time
+	Address   string
+	LastBeat  time.Time
+	IsHealthy bool
 }

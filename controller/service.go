@@ -35,6 +35,10 @@ func CreateServiceController(c *gin.Context) {
 		util.ClientError(c, 2, "prefix不能为空")
 		return
 	}
+	if "/"+req.Name != req.Prefix {
+		util.ClientError(c, util.QueryParamError, "prefix必须为/{name}")
+		return
+	}
 	if req.Prefix == "gateway" {
 		util.ClientError(c, 300, "prefix不能为gateway ")
 	}
@@ -60,10 +64,10 @@ func CreateServiceController(c *gin.Context) {
 		return
 	}
 
-	servicePO, ok := domain.CreateServiceService(&req)
-	if !ok {
+	servicePO, ok, err := domain.CreateServiceService(&req)
+	if !ok && err != nil {
 		domain.GatewayGlobal.FlushGateway()
-		util.ServerError(c, 4, "服务创建失败")
+		util.ServerError(c, 4, "服务创建失败:"+err.Error())
 		return
 	}
 	domain.GatewayGlobal.FlushGateway()
@@ -225,4 +229,65 @@ func ServiceAliveChecker() {
 			}
 		}
 	}
+}
+
+type AddressStatus struct {
+	Address   string    `json:"address"`
+	IsHealthy bool      `json:"is_healthy"`
+	LastBeat  time.Time `json:"last_beat"`
+}
+
+type ServiceStatus struct {
+	Name      string          `json:"name"`
+	Available bool            `json:"available"`
+	Addresses []AddressStatus `json:"addresses"`
+}
+
+type HealthStatusHandlerReq struct {
+	ServiceName string `form:"service_name"`
+}
+
+func HealthStatusHandler(c *gin.Context) {
+	var req HealthStatusHandlerReq
+	c.ShouldBindQuery(&req)
+	if req.ServiceName == "" {
+		util.ClientError(c, util.QueryParamError, "service_name不能为空")
+		return
+	}
+
+	var statuses []ServiceStatus
+	domain.GatewayGlobal.RWMutex.RLock()
+	defer domain.GatewayGlobal.RWMutex.RUnlock()
+
+	if domain.GatewayGlobal.Services == nil {
+		util.ServerError(c, util.DefaultError, "服务列表为空")
+		return
+	}
+
+	for _, service := range domain.GatewayGlobal.Services {
+		var addrStatuses []AddressStatus
+		for _, addr := range service.Addresses {
+			addrStatuses = append(addrStatuses, AddressStatus{
+				Address:   addr.Address,
+				IsHealthy: addr.IsHealthy,
+				LastBeat:  addr.LastBeat,
+			})
+		}
+		statuses = append(statuses, ServiceStatus{
+			Name:      service.Name,
+			Available: service.Available,
+			Addresses: addrStatuses,
+		})
+	}
+	servicebo := domain.GetServiceBO(req.ServiceName)
+	if servicebo == nil {
+		util.ClientError(c, util.QueryParamError, "服务不存在")
+		return
+	}
+	nextAddress := servicebo.GetNextAddress()
+
+	util.Ok(c, "服务健康状态", gin.H{
+		"services": statuses,
+		"target":   nextAddress,
+	})
 }

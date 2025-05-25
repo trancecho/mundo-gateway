@@ -58,7 +58,7 @@ func NewGateway() *Gateway {
 	for _, service := range services {
 		var addresses []*Address
 		for _, address := range service.Addresses {
-			addresses = append(addresses, &Address{address.Address, time.Now()})
+			addresses = append(addresses, &Address{address.Address, time.Now(), true})
 		}
 
 		// 转换 APIs
@@ -84,6 +84,7 @@ func NewGateway() *Gateway {
 			Protocol:    service.Protocol,
 			curAddress:  0,
 			APIs:        apis, // 添加 APIs
+			Available:   service.Available,
 		})
 	}
 
@@ -106,18 +107,18 @@ func NewGateway() *Gateway {
 }
 
 // FlushGateway 重新获取service列表
-func (g *Gateway) FlushGateway() {
+func (this *Gateway) FlushGateway() {
 	// todo 可以优化
 	// 重新获取service列表
 	var servicesPO []po.Service
-	g.DB.Preload("Addresses").Preload("APIs").Where("available=?", true).
+	this.DB.Preload("Addresses").Preload("APIs").Where("available=?", true).
 		Find(&servicesPO)
 	// 初始化全局services列表
 	var serviceBOs []ServiceBO
 	for _, service := range servicesPO {
 		var addresses []*Address
 		for _, address := range service.Addresses {
-			addresses = append(addresses, &Address{address.Address, time.Now()})
+			addresses = append(addresses, &Address{address.Address, time.Now(), true})
 		}
 		log.Println("addresses:", addresses)
 
@@ -139,6 +140,7 @@ func (g *Gateway) FlushGateway() {
 			Protocol:    service.Protocol,
 			curAddress:  0,
 			APIs:        apis,
+			Available:   service.Available,
 		})
 	}
 
@@ -149,8 +151,10 @@ func (g *Gateway) FlushGateway() {
 	}
 
 	// 更新全局网关
-	g.RWMutex.Lock()
-	defer g.RWMutex.Unlock()
-	g.Services = serviceBOs
-	g.Prefixes = prefixes
+	this.RWMutex.Lock()
+	defer this.RWMutex.Unlock()
+	this.Services = serviceBOs
+	this.Prefixes = prefixes
 }
+
+//增加服务健康检查
