@@ -54,9 +54,9 @@ func CreateServiceController(c *gin.Context) {
 			return
 		}
 	} else if req.Protocol == "grpc" {
-		if req.Address[:7] != "grpc://" {
-			log.Println(req.Address[:7])
-			util.ServerError(c, 600, "grpc协议地址不能为空")
+		// 修复gRPC地址验证逻辑
+		if !strings.HasPrefix(req.Address, "grpc://") && !strings.HasPrefix(req.Address, "grpcs://") {
+			util.ServerError(c, 600, "grpc协议地址格式不正确，需以grpc://或grpcs://开头")
 			return
 		}
 	} else {

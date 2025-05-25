@@ -158,3 +158,11 @@ func (this *Gateway) FlushGateway() {
 }
 
 //增加服务健康检查
+
+//func RegisterMux(mux *runtime.ServeMux, service string) error {
+//	serve, ok := GetServiceByName(service)
+//	if !ok {
+//		return fmt.Errorf("服务不存在")
+//	}
+//
+//}

@@ -301,6 +301,19 @@ func GetServiceService(id int64) (*po.Service, bool) {
 	return &servicePO, true
 }
 
+// 查询服务
+func GetServiceByName(name string) (*po.Service, bool) {
+	var servicePO po.Service
+	servicePO.Name = name
+	// 根据id查找service
+	affected := GatewayGlobal.DB.Where("name = ?", name).First(&servicePO).RowsAffected
+	if affected == 0 {
+		log.Println("服务不存在:", name)
+		return nil, false
+	}
+	return &servicePO, true
+}
+
 // 查询服务列表
 func ListServicesService() ([]po.Service, bool) {
 	var services []po.Service

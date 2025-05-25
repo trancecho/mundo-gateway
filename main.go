@@ -5,6 +5,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/trancecho/mundo-gateway/config"
 	"github.com/trancecho/mundo-gateway/controller"
+	"github.com/trancecho/mundo-gateway/domain/core/point"
 	"github.com/trancecho/mundo-gateway/middle"
 	"github.com/trancecho/mundo-gateway/routes"
 	"log"
@@ -25,6 +26,11 @@ func main() {
 	log.Println(viper.GetString("mysql.host") + ":" + viper.GetString("mysql.port"))
 
 	controller.InitGateway()
+	err = point.InitPointClient()
+	if err != nil {
+		log.Println(err)
+	}
+
 	r := gin.New()
 	r.Use(gin.Logger())
 	r.Use(gin.Recovery())

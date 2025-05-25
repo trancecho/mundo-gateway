@@ -1,0 +1,6 @@
+mysql:
+  host: "localhost"
+  pwd: "123456"
+  port: 13306
+server:
+  port: 12388
