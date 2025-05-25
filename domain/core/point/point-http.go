@@ -2,6 +2,7 @@ package point
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/trancecho/mundo-gateway/domain"
 	"github.com/trancecho/mundo-gateway/domain/core/point/point_dto"
 	"github.com/trancecho/mundo-gateway/util"
 	"log"
@@ -13,9 +14,10 @@ func ChangePointAndExperience(c *gin.Context) {
 		util.ServerError(c, 400, "请求参数错误")
 		return
 	}
-	system, err := DialToPointsSystem(req.Token, req.UserID, req.Point, req.Experience, req.Reason)
+	system, err := domain.PointsGlobal.DialToPointsSystem(req.Token, req.UserID, req.Point, req.Experience, req.Reason)
 	if err != nil {
 		log.Println(err)
+		util.ServerError(c, 400, err.Error())
 		return
 	}
 	util.Ok(c, "使用积分成功", gin.H{"Message": system})
@@ -27,9 +29,10 @@ func Sign(c *gin.Context) {
 		util.ServerError(c, 400, "请求参数错误")
 		return
 	}
-	Message, err := SignToPointsSystem(req.Token, req.UserId)
+	Message, err := domain.PointsGlobal.SignToPointsSystem(req.Token, req.UserId)
 	if err != nil {
 		log.Println(err)
+		util.ServerError(c, 400, err.Error())
 		return
 	}
 	util.Ok(c, "签到成功", gin.H{"Message": Message})
@@ -41,9 +44,10 @@ func PointsInfo(c *gin.Context) {
 		util.ServerError(c, 400, "请求参数错误")
 		return
 	}
-	Message, err := GetPointsInfo(req.Token, req.UserId)
+	Message, err := domain.PointsGlobal.GetPointsInfo(req.Token, req.UserId)
 	if err != nil {
 		log.Println(err)
+		util.ServerError(c, 500, err.Error())
 		return
 	}
 	util.Ok(c, "获取积分信息成功", gin.H{"Message": Message})
@@ -55,9 +59,10 @@ func GetStats(c *gin.Context) {
 		util.ServerError(c, 400, "请求参数错误")
 		return
 	}
-	Message, err := AdminStats(req.Token, req.UserId)
+	Message, err := domain.PointsGlobal.AdminStats(req.Token, req.UserId)
 	if err != nil {
 		log.Println(err)
+		util.ServerError(c, 500, err.Error())
 		return
 	}
 	util.Ok(c, "获取信息成功", gin.H{"Message": Message})

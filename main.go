@@ -26,10 +26,7 @@ func main() {
 	log.Println(viper.GetString("mysql.host") + ":" + viper.GetString("mysql.port"))
 
 	controller.InitGateway()
-	err = point.InitPointClient()
-	if err != nil {
-		log.Println(err)
-	}
+	point.InitGlobalPoints()
 
 	r := gin.New()
 	r.Use(gin.Logger())
