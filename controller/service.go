@@ -279,7 +279,12 @@ func HealthStatusHandler(c *gin.Context) {
 			Addresses: addrStatuses,
 		})
 	}
-	nextAddress := domain.GetServiceBO(req.ServiceName).GetNextAddress()
+	servicebo := domain.GetServiceBO(req.ServiceName)
+	if servicebo == nil {
+		util.ClientError(c, util.QueryParamError, "服务不存在")
+		return
+	}
+	nextAddress := servicebo.GetNextAddress()
 
 	util.Ok(c, "服务健康状态", gin.H{
 		"services": statuses,
