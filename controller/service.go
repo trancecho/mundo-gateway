@@ -46,6 +46,21 @@ func CreateServiceController(c *gin.Context) {
 		util.ClientError(c, 310, "protocol不能为空")
 		return
 	}
+	if domain.GatewayGlobal == nil || domain.GatewayGlobal.Redis == nil {
+		util.ServerError(c, util.DefaultError, "Redis 未初始化")
+		return
+	}
+
+	// ✅ Redis 密码校验
+	redisPassword, err := domain.GatewayGlobal.Redis.Get(c, "gateway:register:password").Result()
+	if err != nil {
+		util.ServerError(c, util.DefaultError, "无法读取注册密码，请联系管理员")
+		return
+	}
+	if req.Password != redisPassword {
+		util.ClientError(c, util.QueryParamError, "注册密码错误")
+		return
+	}
 	// 根据协议判断地址是否合规 目前只有http和grpc
 	if req.Protocol == "http" {
 		// 检查地址是否以 http:// 或 https:// 开头
