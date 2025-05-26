@@ -5,7 +5,9 @@ import (
 	"github.com/spf13/viper"
 	"github.com/trancecho/mundo-gateway/config"
 	"github.com/trancecho/mundo-gateway/controller"
+	"github.com/trancecho/mundo-gateway/domain"
 	"github.com/trancecho/mundo-gateway/domain/core/point"
+	"github.com/trancecho/mundo-gateway/job"
 	"github.com/trancecho/mundo-gateway/middle"
 	"github.com/trancecho/mundo-gateway/routes"
 	"log"
@@ -20,14 +22,22 @@ func main() {
 	config.GlobalConfig = config.NewConfig()
 	cfg := config.GlobalConfig
 	err := cfg.Init()
+
 	if err != nil {
 		log.Fatal("配置文件加载失败", err)
 	}
+
 	log.Println(viper.GetString("mysql.host") + ":" + viper.GetString("mysql.port"))
 
 	controller.InitGateway()
 	point.InitGlobalPoints()
 
+	// ✅ 初始化 Redis
+	domain.GatewayGlobal.Redis = domain.InitRedisClient()
+	if domain.GatewayGlobal.Redis == nil {
+		log.Fatal("Redis 初始化失败，程序终止")
+	}
+	job.StartPasswordRefreshTask()
 	r := gin.New()
 	r.Use(gin.Logger())
 	r.Use(gin.Recovery())

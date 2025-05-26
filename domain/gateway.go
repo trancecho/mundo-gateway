@@ -1,20 +1,21 @@
 package domain
 
 import (
+	"github.com/go-redis/redis/v8"
 	"github.com/spf13/viper"
+	"github.com/trancecho/mundo-gateway/po"
+	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
 	"log"
 	"net/http"
 	"sync"
 	"time"
-
-	"github.com/trancecho/mundo-gateway/po"
-	"gorm.io/driver/mysql"
-	"gorm.io/gorm"
 )
 
 // GatewayGlobal 第一个功能，代理路由
 type Gateway struct {
 	DB       *gorm.DB
+	Redis    *redis.Client
 	Prefixes []Prefix
 	Services []ServiceBO
 	globalKV sync.Map //可以先忽略

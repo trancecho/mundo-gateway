@@ -5,6 +5,7 @@ type ServiceCreateReq struct {
 	Prefix   string `json:"prefix"`
 	Protocol string `json:"protocol"`
 	Address  string `json:"address"`
+	Password string `json:"password"`
 }
 
 type ServiceBeatReq struct {
