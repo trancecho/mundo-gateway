@@ -20,12 +20,18 @@ func (s *serverB) Ping(ctx context.Context, req *grpcpingv1.PingRequest) (*grpcp
 }
 
 func main() {
+	var err error
 	server := grpc.NewServer()
 	grpcpingv1.RegisterPingServiceServer(server, &serverB{})
-	client := gatewaySdk.NewGatewayService("ping", "grpc://localhost:50052", "grpc", "http://localhost:12388")
-	log.Println("aa")
-	client.GrpcConn(server)
 
+	client := gatewaySdk.NewGatewayService("ping", "grpc://localhost:50052", "grpc", "http://localhost:12388",
+		gatewaySdk.NewMyRedisTokenGetter("localhost:6379", "gateway:register:password"))
+	log.Println("aa")
+	client.Password, err = client.TokenGetter.GetToken()
+	if err != nil {
+		log.Fatalln("获取失败", err)
+	}
+	client.GrpcConn(server)
 	listener, err := net.Listen("tcp", ":50052")
 	if err != nil {
 		log.Println("failed to listen:", err)
