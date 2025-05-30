@@ -25,7 +25,7 @@ func main() {
 	grpcpingv1.RegisterPingServiceServer(server, &serverB{})
 
 	client := gatewaySdk.NewGatewayService("ping", "grpc://localhost:50052", "grpc", "http://localhost:12388",
-		gatewaySdk.NewMyRedisTokenGetter("localhost:6379", "gateway:register:password"))
+		gatewaySdk.NewMyRedisTokenGetter("localhost:6379", "", "gateway:register:password"))
 	log.Println("aa")
 	client.Password, err = client.TokenGetter.GetToken()
 	if err != nil {

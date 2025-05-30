@@ -61,9 +61,12 @@ func grpcToHTTPStatus(code codes.Code) int {
 }
 
 const (
-	AuthError       = "Error.Auth"
-	DefaultError    = "Error.Default"
-	QueryParamError = "Error.QueryParam"
+	AuthError                 = "Error.Auth"
+	DefaultError              = "Error.Default"
+	QueryParamError           = "Error.QueryParam"
+	RedisDynamicPasswordError = "Error.RedisDynamicPassword"
+
+	ResourceAlreadyExistsWarning = "Warning.ResourceAlreadyExists"
 
 	Success = "Success"
 )
