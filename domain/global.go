@@ -1,6 +1,8 @@
 package domain
 
-import "github.com/trancecho/mundo-gateway/domain/models"
+import (
+	"github.com/trancecho/mundo-gateway/domain/models"
+)
 
 // 全局变量
 
@@ -8,4 +10,5 @@ import "github.com/trancecho/mundo-gateway/domain/models"
 var (
 	GatewayGlobal *Gateway
 	PointsGlobal  models.PointClientInterface
+	Limiter       models.LimiterInterface
 )

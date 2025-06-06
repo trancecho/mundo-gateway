@@ -6,11 +6,13 @@ import (
 	"github.com/trancecho/mundo-gateway/config"
 	"github.com/trancecho/mundo-gateway/controller"
 	"github.com/trancecho/mundo-gateway/domain"
+	"github.com/trancecho/mundo-gateway/domain/core/limiter"
 	"github.com/trancecho/mundo-gateway/domain/core/point"
 	"github.com/trancecho/mundo-gateway/job"
 	"github.com/trancecho/mundo-gateway/middle"
 	"github.com/trancecho/mundo-gateway/routes"
 	"log"
+	"time"
 )
 
 func init() {
@@ -32,6 +34,10 @@ func main() {
 	controller.InitGateway()
 	point.InitGlobalPoints()
 
+	//初始化限流器
+	domain.Limiter = limiter.NewAccessLimiter(1000, 10) // 每1000毫秒允许10次请求
+	//启动刷新Limiter本地缓存
+	domain.Limiter.StartCacheRefresher(5 * time.Minute)
 	// ✅ 初始化 Redis
 	domain.GatewayGlobal.Redis = domain.InitRedisClient()
 	if domain.GatewayGlobal.Redis == nil {
