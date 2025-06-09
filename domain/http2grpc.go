@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/golang/protobuf/proto"
+	"github.com/trancecho/mundo-gateway/global"
 	"github.com/trancecho/mundo-gateway/po"
 	"github.com/trancecho/mundo-gateway/util"
 	"google.golang.org/grpc"
@@ -49,7 +50,7 @@ func GRPCProxyHandler(c *gin.Context, address string, apibo *APIBO) {
 	//address为grpc://ip:port的格式，需要去掉前缀
 	address = address[7:]
 	log.Println("啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊地址:", address, apibo)
-	GatewayGlobal.DB.Model(&po.GrpcMethodMeta{}).Where("api_id=?", apibo.Id).First(&apibo.GrpcMethodMeta)
+	global.GatewayGlobal.DB.Model(&po.GrpcMethodMeta{}).Where("api_id=?", apibo.Id).First(&apibo.GrpcMethodMeta)
 	log.Println("啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊地址:", address, apibo)
 	grpcService := apibo.GrpcMethodMeta.ServiceName
 	grpcMethod := apibo.GrpcMethodMeta.MethodName

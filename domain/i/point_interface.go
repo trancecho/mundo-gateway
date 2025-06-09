@@ -1,4 +1,4 @@
-package models
+package i
 
 import "github.com/trancecho/mundo-gateway/proto/point/v1"
 

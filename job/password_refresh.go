@@ -2,11 +2,11 @@ package job
 
 import (
 	"context"
+	"github.com/trancecho/mundo-gateway/global"
 	"log"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/trancecho/mundo-gateway/domain" // 假设你 Redis 实例放在 domain.GatewayGlobal.Redis
 )
 
 func StartPasswordRefreshTask() {
@@ -25,7 +25,7 @@ func StartPasswordRefreshTask() {
 func refreshPassword() {
 	ctx := context.Background()
 	newPassword := generatePassword()
-	err := domain.GatewayGlobal.Redis.Set(ctx, "gateway:register:password", newPassword, 2*time.Hour).Err()
+	err := global.GatewayGlobal.Redis.Set(ctx, "gateway:register:password", newPassword, 2*time.Hour).Err()
 	if err != nil {
 		log.Println("刷新注册密码失败:", err)
 		return

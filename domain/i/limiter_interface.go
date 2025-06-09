@@ -1,11 +1,12 @@
-package models
+package i
 
 import "time"
 
-type LimiterInterface interface {
+type ILimiter interface {
 	IsBlackListed(ip string) bool
 	AddToBlackList(ip string) bool
 	SyncBlackList() error
-	AllowRequest(ip string) bool
+	AllowIp(ip string) bool
 	StartCacheRefresher(duration time.Duration)
+	StartIpRateRecorderFlusher()
 }

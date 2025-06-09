@@ -5,95 +5,103 @@ import (
 	"fmt"
 	"github.com/go-redis/redis/v8"
 	"github.com/trancecho/mundo-gateway/domain"
+	"github.com/trancecho/mundo-gateway/domain/i"
+	"github.com/trancecho/mundo-gateway/global"
 	"log"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
-type RateLimiter struct {
-	lastAccess time.Time
-	tokens     float64 //当前令牌数
-	rate       float64 //每秒产生令牌数
-	capacity   float64 //桶的容量
+type IpRateRecorder struct {
+	//lastAccess time.Time
+	//tokens     float64 //当前令牌数
+	//rate       float64 //每秒产生令牌数
+	//capacity   float64 //桶的容量
+	cnt        atomic.Int64
+	lastAccess atomic.Int64 // 最后访问时间戳，单位为纳秒
 }
 
 type AccessLimiter struct {
 	redisClient    *redis.Client
-	rateLimiters   map[string]*RateLimiter //IP对应的限流器
-	limiterMutex   sync.RWMutex            //限流器读写锁
-	globalRate     int                     //全局默认请求速率
-	globalCapacity int                     //全局默认容量
-	blackListCache map[string]bool         //黑名单缓存
-	blackListKey   string                  //黑名单键名
-	cacheMutex     sync.RWMutex            //缓存读写锁
-	cacheTTL       time.Duration           //缓存有效期
-	lastSync       time.Time               //上次同步时间
+	ipRateRecorder map[string]*IpRateRecorder //IP对应的限流器
+	limiterLock    sync.RWMutex               //限流器读写锁
+	//globalRate     int                     //全局默认请求速率
+	//globalCapacity int                     //全局默认容量
+
+	blackListKey   string          //黑名单键名
+	blackListCache map[string]bool //黑名单缓存
+	blackListLock  sync.RWMutex    //缓存读写锁
+	//cacheTTL       time.Duration   //缓存有效期
 }
 
+// 实现接口
+var _ i.ILimiter = (*AccessLimiter)(nil)
+
+// 全局一个
 func NewAccessLimiter(globalRate, globalCapacity int) *AccessLimiter {
 	// 创建Redis客户端
 	rdb := domain.InitRedisClient()
 
 	return &AccessLimiter{
 		redisClient:    rdb,
-		rateLimiters:   make(map[string]*RateLimiter),
+		ipRateRecorder: make(map[string]*IpRateRecorder),
 		blackListCache: make(map[string]bool),
-		globalRate:     globalRate,
-		globalCapacity: globalCapacity,
 		blackListKey:   "gateway:blacklist",
-		lastSync:       time.Now(),
 	}
 }
 
-// IsBlackListed 检查IP是否在黑名单中
-func (A *AccessLimiter) IsBlackListed(ip string) bool {
+// 检查IP是否在黑名单中
+func (this *AccessLimiter) IsBlackListed(ip string) bool {
 	//检查本地缓存
-	A.cacheMutex.RLock()
-	cached, exists := A.blackListCache[ip]
-	if exists {
-		A.cacheMutex.RUnlock()
-		return cached
+	this.blackListLock.RLock()
+	_, ok := this.blackListCache[ip]
+	this.blackListLock.RUnlock()
+	if !ok {
+		return false
+	} else {
+		return true
 	}
-	A.cacheMutex.RUnlock()
+	//this.blackListLock.RUnlock()
 	//如果本地缓存不存在，查询Redis
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	member, ok := A.redisClient.SIsMember(ctx, A.blackListKey, ip).Result()
-	if ok != nil {
-		//检测失败，默认放行
-		log.Printf("Error checking blacklist for IP %s: %v\n", ip, ok)
-		return false //考虑中
-	}
-	//更新本地缓存
-	A.cacheMutex.Lock()
-	A.blackListCache[ip] = member
-	A.cacheMutex.Unlock()
-	return member
+	//ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	//defer cancel()
+	//member, err := this.redisClient.SIsMember(ctx, this.blackListKey, ip).Result()
+	//if err != nil {
+	//	//检测失败，默认放行
+	//	log.Printf("Error checking blacklist for IP %s: %v\n", ip, ok)
+	//	return false //考虑中
+	//}
+	////更新本地缓存
+	//this.blackListLock.Lock()
+	//this.blackListCache[ip] = member
+	//this.blackListLock.Unlock()
+	//return member
 }
 
-// AddToBlackList 添加IP到黑名单
-func (A *AccessLimiter) AddToBlackList(ip string) bool {
+// 添加IP到黑名单
+func (this *AccessLimiter) AddToBlackList(ip string) bool {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	// 添加到Redis黑名单
-	if err := A.redisClient.SAdd(ctx, A.blackListKey, ip).Err(); err != nil {
+	if err := this.redisClient.SAdd(ctx, this.blackListKey, ip).Err(); err != nil {
 		log.Printf("Error adding IP %s to blacklist: %v\n", ip, err)
 		return false
 	}
 	// 更新本地缓存
-	A.cacheMutex.Lock()
-	A.blackListCache[ip] = true
-	A.cacheMutex.Unlock()
+	this.blackListLock.Lock()
+	this.blackListCache[ip] = true
+	this.blackListLock.Unlock()
 	return true
 }
 
-// SyncBlackList 同步黑名单到本地缓存
-func (A *AccessLimiter) SyncBlackList() error {
+// 同步黑名单到本地缓存
+func (this *AccessLimiter) SyncBlackList() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	// 获取Redis黑名单成员
-	members, err := A.redisClient.SMembers(ctx, A.blackListKey).Result()
+	members, err := this.redisClient.SMembers(ctx, this.blackListKey).Result()
 	if err != nil {
 		return fmt.Errorf("failed to get blacklist from Redis: %v", err)
 	}
@@ -103,57 +111,82 @@ func (A *AccessLimiter) SyncBlackList() error {
 		newCache[member] = true
 	}
 
-	A.cacheMutex.Lock()
-	A.blackListCache = newCache
-	// 更新上次同步时间
-	A.lastSync = time.Now()
-	A.cacheMutex.Unlock()
-
+	this.blackListLock.Lock()
+	this.blackListCache = newCache
+	this.blackListLock.Unlock()
 	return nil
 }
 
-// AllowRequest 限流检查
-func (A *AccessLimiter) AllowRequest(ip string) bool {
-	A.limiterMutex.Lock()
-	defer A.limiterMutex.Unlock()
-
-	limiter, ok := A.rateLimiters[ip]
-	if !ok {
-		// 创建新的限流器
-		limiter = &RateLimiter{
-			lastAccess: time.Now(),
-			tokens:     float64(A.globalCapacity),
-			rate:       float64(A.globalRate),
-			capacity:   float64(A.globalCapacity),
-		}
-		A.rateLimiters[ip] = limiter
-	}
-
-	now := time.Now()
-	elapsed := now.Sub(limiter.lastAccess).Seconds()
-	limiter.tokens += elapsed * limiter.rate
-	if limiter.tokens > limiter.capacity {
-		limiter.tokens = limiter.capacity // 限制令牌数不超过容量
-	}
-	limiter.lastAccess = now
-
-	//检查令牌
-	if limiter.tokens > 1 {
-		limiter.tokens -= 1 // 消耗一个令牌
-		return true
-	}
-	return false
-}
-
-func (A *AccessLimiter) StartCacheRefresher(duration time.Duration) {
+func (this *AccessLimiter) StartCacheRefresher(duration time.Duration) {
 	go func() {
 		ticker := time.NewTicker(duration)
 		defer ticker.Stop()
-		for range ticker.C {
-			if err := A.SyncBlackList(); err != nil {
-				log.Printf("Error syncing blacklist: %v\n", err)
-			} else {
-				log.Println("BlackList cache refreshed successfully")
+		for {
+			select {
+			case <-ticker.C:
+				if err := this.SyncBlackList(); err != nil {
+					log.Printf("Error syncing blacklist: %v\n", err)
+				} else {
+					log.Println("Black list cache refreshed successfully")
+				}
+			}
+		}
+	}()
+}
+
+func (this *AccessLimiter) AllowIp(ip string) bool {
+	this.blackListLock.RLock()
+	if _, ok := this.blackListCache[ip]; ok {
+		this.blackListLock.RUnlock()
+		log.Println("IP is blacklisted:", ip)
+		return false
+	}
+	this.blackListLock.RUnlock()
+	this.limiterLock.Lock()
+	recorder, ok := this.ipRateRecorder[ip]
+	if !ok {
+		// 如果不存在，创建一个新的限流器
+		recorder = &IpRateRecorder{
+			cnt: atomic.Int64{},
+		}
+		this.ipRateRecorder[ip] = recorder
+	}
+	this.limiterLock.Unlock()
+	// 更新访问时间
+	recorder.cnt.Add(1)                              // 增加访问计数
+	recorder.lastAccess.Store(time.Now().UnixNano()) // 更新最后访问时间戳
+	// 检查访问频率是否超过限制
+	if recorder.cnt.Load() > int64(global.QueryPerMinLimitGlobal) {
+		// 如果超过限制，加入黑名单
+		if this.AddToBlackList(ip) {
+			this.limiterLock.Lock()
+			delete(this.ipRateRecorder, ip) // 删除限流器
+			this.limiterLock.Unlock()
+			log.Println("IP added to blacklist due to rate limit exceeded:", ip)
+			return false
+		}
+	}
+	log.Println("IP allowed:", ip)
+	return true
+}
+func (this *AccessLimiter) StartIpRateRecorderFlusher() {
+	go func() {
+		ticker := time.NewTicker(1 * time.Minute)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				this.limiterLock.Lock()
+				for ip, recorder := range this.ipRateRecorder {
+					// 将cnt置0。若超过十分钟没有访问，则认为该IP不再活跃，删除
+					if time.Now().UnixNano()-recorder.lastAccess.Load() > 10*time.Minute.Nanoseconds() {
+						delete(this.ipRateRecorder, ip)
+						log.Println("IP removed from rate limiter due to inactivity:", ip)
+					} else {
+						recorder.cnt.Store(0) // 重置访问计数
+					}
+				}
+				this.limiterLock.Unlock()
 			}
 		}
 	}()

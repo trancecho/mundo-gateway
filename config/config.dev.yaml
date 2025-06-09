@@ -4,3 +4,9 @@ mysql:
   port: 13306
 server:
   port: 12388
+redis:
+  addr: localhost:6379
+  password: ""
+  db: 0
+limit:
+  qpm: 50

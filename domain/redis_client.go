@@ -8,8 +8,20 @@ import (
 	"time"
 )
 
-// InitRedisClient 初始化 Redis 并自动 ping 测试
+// 初始化 Redis 并自动 ping 测试
 func InitRedisClient() *redis.Client {
+	if viper.IsSet("redis.addr") == false {
+		log.Println("❌ redis.addr未配置，请检查配置文件")
+		return nil
+	}
+	if viper.IsSet("redis.password") == false {
+		log.Println("❌ redis.password未配置，请检查配置文件")
+		return nil
+	}
+	if viper.IsSet("redis.db") == false {
+		log.Println("❌ redis.db未配置，请检查配置文件")
+		return nil
+	}
 	addr := viper.GetString("redis.addr")
 	password := viper.GetString("redis.password")
 	db := viper.GetInt("redis.db")

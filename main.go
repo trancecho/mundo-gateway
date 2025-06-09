@@ -6,13 +6,12 @@ import (
 	"github.com/trancecho/mundo-gateway/config"
 	"github.com/trancecho/mundo-gateway/controller"
 	"github.com/trancecho/mundo-gateway/domain"
-	"github.com/trancecho/mundo-gateway/domain/core/limiter"
 	"github.com/trancecho/mundo-gateway/domain/core/point"
+	"github.com/trancecho/mundo-gateway/global"
 	"github.com/trancecho/mundo-gateway/job"
 	"github.com/trancecho/mundo-gateway/middle"
 	"github.com/trancecho/mundo-gateway/routes"
 	"log"
-	"time"
 )
 
 func init() {
@@ -28,22 +27,20 @@ func main() {
 	if err != nil {
 		log.Fatal("配置文件加载失败", err)
 	}
+	global.InitVarFromConfigGlobal()
 
 	log.Println(viper.GetString("mysql.host") + ":" + viper.GetString("mysql.port"))
 
 	controller.InitGateway()
 	point.InitGlobalPoints()
 
-	//初始化限流器
-	domain.Limiter = limiter.NewAccessLimiter(1000, 10) // 每1000毫秒允许10次请求
-	//启动刷新Limiter本地缓存
-	domain.Limiter.StartCacheRefresher(5 * time.Minute)
-	// ✅ 初始化 Redis
-	domain.GatewayGlobal.Redis = domain.InitRedisClient()
-	if domain.GatewayGlobal.Redis == nil {
+	// redis
+	global.GatewayGlobal.Redis = domain.InitRedisClient()
+	if global.GatewayGlobal.Redis == nil {
 		log.Fatal("Redis 初始化失败，程序终止")
 	}
 	job.StartPasswordRefreshTask()
+
 	r := gin.New()
 	r.Use(gin.Logger())
 	r.Use(gin.Recovery())

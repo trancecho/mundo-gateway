@@ -4,6 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/trancecho/mundo-gateway/controller/dto"
 	"github.com/trancecho/mundo-gateway/domain"
+	"github.com/trancecho/mundo-gateway/global"
 	"github.com/trancecho/mundo-gateway/util"
 	"log"
 	"strconv"
@@ -46,13 +47,13 @@ func CreateServiceController(c *gin.Context) {
 		util.ClientError(c, 310, "protocol不能为空")
 		return
 	}
-	if domain.GatewayGlobal == nil || domain.GatewayGlobal.Redis == nil {
+	if global.GatewayGlobal == nil || global.GatewayGlobal.Redis == nil {
 		util.ServerError(c, util.DefaultError, "Redis 未初始化")
 		return
 	}
 
 	// ✅ Redis 密码校验
-	redisPassword, err := domain.GatewayGlobal.Redis.Get(c, "gateway:register:password").Result()
+	redisPassword, err := global.GatewayGlobal.Redis.Get(c, "gateway:register:password").Result()
 	if err != nil {
 		util.ServerError(c, util.DefaultError, "无法读取注册密码，请联系管理员")
 		return
@@ -81,11 +82,11 @@ func CreateServiceController(c *gin.Context) {
 
 	servicePO, ok, err := domain.CreateServiceService(&req)
 	if !ok && err != nil {
-		domain.GatewayGlobal.FlushGateway()
+		global.GatewayGlobal.FlushGateway()
 		util.ServerError(c, util.ResourceAlreadyExistsWarning, "服务创建失败:"+err.Error())
 		return
 	}
-	domain.GatewayGlobal.FlushGateway()
+	global.GatewayGlobal.FlushGateway()
 	util.Ok(c, "服务创建成功", gin.H{
 		"service": servicePO,
 	})
@@ -108,7 +109,7 @@ func UpdateServiceController(c *gin.Context) {
 		util.ServerError(c, 800, "服务更新失败")
 		return
 	}
-	domain.GatewayGlobal.FlushGateway()
+	global.GatewayGlobal.FlushGateway()
 
 	util.Ok(c, "服务更新成功", gin.H{
 		"service": servicePO,
@@ -141,7 +142,7 @@ func DeleteServiceController(c *gin.Context) {
 		util.ServerError(c, 2, "服务删除失败")
 		return
 	}
-	domain.GatewayGlobal.FlushGateway()
+	global.GatewayGlobal.FlushGateway()
 
 	util.Ok(c, "服务删除和相关api删除成功", nil)
 }
@@ -164,7 +165,7 @@ func DeleteServiceAddressController(c *gin.Context) {
 		util.ServerError(c, 2, "服务地址删除失败")
 		return
 	}
-	domain.GatewayGlobal.FlushGateway()
+	global.GatewayGlobal.FlushGateway()
 
 	util.Ok(c, "服务地址删除成功", nil)
 }
@@ -232,7 +233,7 @@ func ServiceAliveChecker() {
 	for {
 		select {
 		case <-ticker.C:
-			for _, serviceBO := range domain.GatewayGlobal.Services {
+			for _, serviceBO := range global.GatewayGlobal.Services {
 				for _, address := range serviceBO.Addresses {
 					// 如果服务超过30秒没有心跳，则认为服务不可用
 					if time.Since(address.LastBeat) > 30*time.Second {
@@ -271,15 +272,15 @@ func HealthStatusHandler(c *gin.Context) {
 	}
 
 	var statuses []ServiceStatus
-	domain.GatewayGlobal.RWMutex.RLock()
-	defer domain.GatewayGlobal.RWMutex.RUnlock()
+	global.GatewayGlobal.RWMutex.RLock()
+	defer global.GatewayGlobal.RWMutex.RUnlock()
 
-	if domain.GatewayGlobal.Services == nil {
+	if global.GatewayGlobal.Services == nil {
 		util.ServerError(c, util.DefaultError, "服务列表为空")
 		return
 	}
 
-	for _, service := range domain.GatewayGlobal.Services {
+	for _, service := range global.GatewayGlobal.Services {
 		var addrStatuses []AddressStatus
 		for _, addr := range service.Addresses {
 			addrStatuses = append(addrStatuses, AddressStatus{
