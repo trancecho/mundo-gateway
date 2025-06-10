@@ -6,6 +6,7 @@ type ILimiter interface {
 	IsBlackListed(ip string) bool
 	AddToBlackList(ip string) bool
 	SyncBlackList() error
+	SyncWhiteList() error
 	AllowIp(ip string) bool
 	StartCacheRefresher(duration time.Duration)
 	StartIpRateRecorderFlusher()

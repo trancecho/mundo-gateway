@@ -35,6 +35,7 @@ type AccessLimiter struct {
 	//cacheTTL       time.Duration   //缓存有效期
 
 	//白名单直接读数据库
+	whiteListKey   string          //白名单键名
 	whiteListCache map[string]bool //白名单缓存
 	whiteListLock  sync.RWMutex    //白名单缓存读写锁
 	db             *gorm.DB
@@ -52,7 +53,6 @@ func (this *AccessLimiter) IsWhiteListed(ip string) bool {
 }
 
 // 实现接口
-var _ i.ILimiter = (*AccessLimiter)(nil)
 
 // 全局一个
 func NewAccessLimiter(db *gorm.DB) *AccessLimiter {
@@ -66,6 +66,7 @@ func NewAccessLimiter(db *gorm.DB) *AccessLimiter {
 		blackListKey:   "gateway:blacklist",
 		whiteListCache: make(map[string]bool),
 		db:             db,
+		whiteListKey:   "gateway:whitelist",
 	}
 }
 
@@ -115,6 +116,16 @@ func (this *AccessLimiter) AddToBlackList(ip string) bool {
 
 // 添加ip到白名单
 func (this *AccessLimiter) AddToWhiteList(ip string) bool {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// 添加到Redis白名单
+	if err := this.redisClient.SAdd(ctx, this.whiteListKey, ip).Err(); err != nil {
+		log.Printf("Error adding IP %s to whitelist: %v\n", ip, err)
+		return false
+	}
+
+	// 更新本地缓存
 	this.whiteListLock.Lock()
 	this.whiteListCache[ip] = true
 	this.whiteListLock.Unlock()
@@ -143,6 +154,27 @@ func (this *AccessLimiter) SyncBlackList() error {
 	return nil
 }
 
+func (this *AccessLimiter) SyncWhiteList() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// 获取Redis白名单成员
+	members, err := this.redisClient.SMembers(ctx, this.whiteListKey).Result()
+	if err != nil {
+		return fmt.Errorf("failed to get whitelist from Redis: %v", err)
+	}
+
+	newCache := make(map[string]bool)
+	for _, member := range members {
+		newCache[member] = true
+	}
+
+	this.whiteListLock.Lock()
+	this.whiteListCache = newCache
+	this.whiteListLock.Unlock()
+	return nil
+}
+
 func (this *AccessLimiter) StartCacheRefresher(duration time.Duration) {
 	go func() {
 		ticker := time.NewTicker(duration)
@@ -154,19 +186,11 @@ func (this *AccessLimiter) StartCacheRefresher(duration time.Duration) {
 					log.Printf("从redis同步黑名单失败: %v\n", err)
 				}
 				// 同步白名单
-				var ips []string
-				err := this.db.Table("addresses").Pluck("address", &ips).Error
-				if err != nil {
-					log.Printf("从mysql同步白名单失败: %v\n", err)
+				if err := this.SyncWhiteList(); err != nil {
+					log.Printf("从数据库同步白名单失败: %v\n", err)
+				} else {
+					log.Println("同步白名单成功")
 				}
-				var ipHash map[string]bool
-				ipHash = make(map[string]bool)
-				for _, ip := range ips {
-					ipHash[ip] = true
-				}
-				this.whiteListLock.Lock()
-				this.whiteListCache = ipHash
-				this.whiteListLock.Unlock()
 				log.Println("同步黑名单白名单成功")
 			}
 		}
@@ -235,3 +259,5 @@ func (this *AccessLimiter) StartIpRateRecorderFlusher() {
 		}
 	}()
 }
+
+var _ i.ILimiter = (*AccessLimiter)(nil)
