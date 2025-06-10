@@ -6,6 +6,7 @@ import (
 	"github.com/trancecho/mundo-gateway/domain/core/limiter"
 	"github.com/trancecho/mundo-gateway/global"
 	"log"
+	"time"
 )
 
 // 配置
@@ -34,13 +35,13 @@ func check() error {
 func InitLimiterGlobal() {
 	if global.LimiterGlobal == nil {
 		// 初始化限流器
-		global.LimiterGlobal = limiter.NewAccessLimiter(
-			viper.GetInt("limit.global_rate"),
-			viper.GetInt("limit.global_capacity"),
-		)
+		global.LimiterGlobal = limiter.NewAccessLimiter()
 		if global.LimiterGlobal == nil {
 			log.Fatal("限流器初始化失败")
 		}
+		// 每分钟（从其他节点同步。如果是本地的话，会立刻刷新）
+		global.LimiterGlobal.StartCacheRefresher(time.Minute * 1)
+		global.LimiterGlobal.StartIpRateRecorderFlusher()
 	} else {
 		log.Println("限流器已存在，跳过初始化")
 	}

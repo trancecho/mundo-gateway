@@ -17,15 +17,14 @@ func LimitRequest() gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		//// 检查限流器
-		//if !domain.LimiterGlobal.AllowIp(ip) {
-		//	domain.LimiterGlobal.AddToBlackList(ip)
-		//	c.JSON(500, gin.H{
-		//		"error": "请求限流，已进入黑名单",
-		//	})
-		//	c.Abort()
-		//	return
-		//}
+		// 检查限流器
+		if !global.LimiterGlobal.AllowIp(ip) {
+			c.JSON(500, gin.H{
+				"error": "请求限流，已进入黑名单",
+			})
+			c.Abort()
+			return
+		}
 
 		c.Next()
 	}

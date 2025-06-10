@@ -39,7 +39,7 @@ type AccessLimiter struct {
 var _ i.ILimiter = (*AccessLimiter)(nil)
 
 // 全局一个
-func NewAccessLimiter(globalRate, globalCapacity int) *AccessLimiter {
+func NewAccessLimiter() *AccessLimiter {
 	// 创建Redis客户端
 	rdb := domain.InitRedisClient()
 

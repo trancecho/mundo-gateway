@@ -8,6 +8,7 @@ import (
 	"github.com/trancecho/mundo-gateway/domain"
 	"github.com/trancecho/mundo-gateway/domain/core/point"
 	"github.com/trancecho/mundo-gateway/global"
+	"github.com/trancecho/mundo-gateway/initial"
 	"github.com/trancecho/mundo-gateway/job"
 	"github.com/trancecho/mundo-gateway/middle"
 	"github.com/trancecho/mundo-gateway/routes"
@@ -27,7 +28,7 @@ func main() {
 	if err != nil {
 		log.Fatal("配置文件加载失败", err)
 	}
-	global.InitVarFromConfigGlobal()
+	initial.InitVarFromConfigGlobal()
 
 	log.Println(viper.GetString("mysql.host") + ":" + viper.GetString("mysql.port"))
 
@@ -41,10 +42,13 @@ func main() {
 	}
 	job.StartPasswordRefreshTask()
 
+	initial.InitLimiterGlobal()
+
 	r := gin.New()
 	r.Use(gin.Logger())
 	r.Use(gin.Recovery())
 	r.Use(middle.Middleware())
+	r.Use(middle.LimitRequest()) // 限流中间件
 
 	routes.MakeRoutes(r)
 
