@@ -3,7 +3,6 @@ package domain
 import (
 	"errors"
 	"github.com/trancecho/mundo-gateway/controller/dto"
-	"github.com/trancecho/mundo-gateway/global"
 	"github.com/trancecho/mundo-gateway/po"
 	"gorm.io/gorm"
 	"log"
@@ -39,7 +38,7 @@ func (s *ServiceBO) GetNextAddress() string {
 }
 
 func GetServiceBO(name string) *ServiceBO {
-	for _, service := range global.GatewayGlobal.Services {
+	for _, service := range GatewayGlobal.Services {
 		if service.Name == name {
 			return &service
 		}
@@ -58,7 +57,7 @@ func (s *ServiceBO) GetAddressBO(address string) *Address {
 
 func UnregisterServiceService(name string, address string) bool {
 	// 开启事务
-	tx := global.GatewayGlobal.DB.Begin()
+	tx := GatewayGlobal.DB.Begin()
 	defer func() {
 		if r := recover(); r != nil {
 			tx.Rollback()
@@ -126,7 +125,7 @@ func UnregisterServiceService(name string, address string) bool {
 	}
 
 	// 更新内存中的数据
-	global.GatewayGlobal.FlushGateway()
+	GatewayGlobal.FlushGateway()
 
 	// 日志记录
 	log.Println("服务地址删除成功:", servicePO.Name, address)
@@ -138,7 +137,7 @@ func CreateServiceService(dto *dto.ServiceCreateReq) (*po.Service, bool, error) 
 	var err error
 	var servicePO po.Service
 	// 根据name查找service
-	affected := global.GatewayGlobal.DB.Where("prefix=?", dto.Prefix).
+	affected := GatewayGlobal.DB.Where("prefix=?", dto.Prefix).
 		Find(&servicePO).RowsAffected
 	log.Println(dto)
 	log.Println("affected", affected, servicePO)
@@ -151,11 +150,11 @@ func CreateServiceService(dto *dto.ServiceCreateReq) (*po.Service, bool, error) 
 		}
 		// 激活已存在的
 		if servicePO.Available == false {
-			global.GatewayGlobal.DB.Model(&po.Service{}).Where("id = ?", servicePO.ID).Update("available", true)
+			GatewayGlobal.DB.Model(&po.Service{}).Where("id = ?", servicePO.ID).Update("available", true)
 		}
 		// 找其地址列表
 		var addresses []po.Address
-		global.GatewayGlobal.DB.Where("service_id = ?", servicePO.ID).Find(&addresses)
+		GatewayGlobal.DB.Where("service_id = ?", servicePO.ID).Find(&addresses)
 		// 查看是否有该地址
 		for _, address := range addresses {
 			if address.Address == dto.Address {
@@ -165,14 +164,14 @@ func CreateServiceService(dto *dto.ServiceCreateReq) (*po.Service, bool, error) 
 		}
 		addresses = append(addresses, po.Address{ServiceId: servicePO.ID, Address: dto.Address})
 		// 更新地址列表
-		err = global.GatewayGlobal.DB.Save(&addresses).Error
+		err = GatewayGlobal.DB.Save(&addresses).Error
 		if err != nil {
 			log.Println("服务新地址保存失败", err)
 			return nil, false, err
 		}
 
 		// ✅ 加载地址（这是关键补充步骤）
-		err = global.GatewayGlobal.DB.Preload("Addresses").
+		err = GatewayGlobal.DB.Preload("Addresses").
 			Where("id = ?", servicePO.ID).First(&servicePO).Error
 		if err != nil {
 			log.Println("刷新地址失败", err)
@@ -189,7 +188,7 @@ func CreateServiceService(dto *dto.ServiceCreateReq) (*po.Service, bool, error) 
 		servicePO.Available = true
 		servicePO.Addresses = []po.Address{{Address: dto.Address}}
 		// 创建service
-		err = global.GatewayGlobal.DB.Create(&servicePO).Error
+		err = GatewayGlobal.DB.Create(&servicePO).Error
 		if err != nil {
 			log.Println("服务创建失败", err)
 			return nil, false, err
@@ -204,7 +203,7 @@ func UpdateServiceService(dto *dto.ServiceUpdateReq) (*po.Service, bool) {
 	var servicePO po.Service
 	servicePO.ID = dto.Id
 	// 根据id查找service
-	affected := global.GatewayGlobal.DB.Where("id=?", servicePO.ID).First(&servicePO).RowsAffected
+	affected := GatewayGlobal.DB.Where("id=?", servicePO.ID).First(&servicePO).RowsAffected
 	if affected == 0 {
 		log.Println("service不存在")
 		return nil, false
@@ -219,7 +218,7 @@ func UpdateServiceService(dto *dto.ServiceUpdateReq) (*po.Service, bool) {
 		servicePO.Protocol = dto.Protocol
 	}
 	// 更新service
-	err = global.GatewayGlobal.DB.Save(&servicePO).Error
+	err = GatewayGlobal.DB.Save(&servicePO).Error
 	if err != nil {
 		log.Println("服务更新失败", err)
 		return nil, false
@@ -241,14 +240,14 @@ func DeleteAddressService(id int64) bool {
 	var addressPO po.Address
 	addressPO.ID = id
 	// 根据id查找address
-	affected := global.GatewayGlobal.DB.Where("id=?", addressPO.ID).
+	affected := GatewayGlobal.DB.Where("id=?", addressPO.ID).
 		Find(&addressPO).RowsAffected
 	if affected == 0 {
 		log.Println("地址不存在")
 		return false
 	}
 	// 删除address
-	err = global.GatewayGlobal.DB.Delete(&addressPO).Error
+	err = GatewayGlobal.DB.Delete(&addressPO).Error
 	if err != nil {
 		log.Println("地址删除失败", err)
 		return false
@@ -262,22 +261,22 @@ func DeleteServiceService(id int64) bool {
 	var servicePO po.Service
 	servicePO.ID = id
 	// 根据id查找service
-	affected := global.GatewayGlobal.DB.Where("id=?", servicePO.ID).
+	affected := GatewayGlobal.DB.Where("id=?", servicePO.ID).
 		Find(&servicePO).RowsAffected
 	if affected == 0 {
 		log.Println("服务不存在")
 		return false
 	}
 	// 删除service
-	err = global.GatewayGlobal.DB.Delete(&servicePO).Error
+	err = GatewayGlobal.DB.Delete(&servicePO).Error
 	if err != nil {
 		log.Println("服务删除失败", err)
 		return false
 	}
 	// 删除地址
 	var addresses []po.Address
-	global.GatewayGlobal.DB.Where("service_id = ?", servicePO.ID).Find(&addresses)
-	err = global.GatewayGlobal.DB.Delete(&addresses).Error
+	GatewayGlobal.DB.Where("service_id = ?", servicePO.ID).Find(&addresses)
+	err = GatewayGlobal.DB.Delete(&addresses).Error
 	if err != nil {
 		log.Println("服务地址删除失败", err)
 		return false
@@ -290,14 +289,14 @@ func GetServiceService(id int64) (*po.Service, bool) {
 	var servicePO po.Service
 	servicePO.ID = id
 	// 根据id查找service
-	affected := global.GatewayGlobal.DB.Find(&servicePO).RowsAffected
+	affected := GatewayGlobal.DB.Find(&servicePO).RowsAffected
 	if affected == 0 {
 		log.Println("服务不存在")
 		return nil, false
 	}
 	// 找其地址列表
 	var addresses []po.Address
-	global.GatewayGlobal.DB.Where("service_id = ?", servicePO.ID).Find(&addresses)
+	GatewayGlobal.DB.Where("service_id = ?", servicePO.ID).Find(&addresses)
 	servicePO.Addresses = addresses
 	return &servicePO, true
 }
@@ -307,7 +306,7 @@ func GetServiceByName(name string) (*po.Service, bool) {
 	var servicePO po.Service
 	servicePO.Name = name
 	// 根据id查找service
-	affected := global.GatewayGlobal.DB.Where("name = ?", name).First(&servicePO).RowsAffected
+	affected := GatewayGlobal.DB.Where("name = ?", name).First(&servicePO).RowsAffected
 	if affected == 0 {
 		log.Println("服务不存在:", name)
 		return nil, false
@@ -319,11 +318,11 @@ func GetServiceByName(name string) (*po.Service, bool) {
 func ListServicesService() ([]po.Service, bool) {
 	var services []po.Service
 	// 查询所有service
-	global.GatewayGlobal.DB.Find(&services)
+	GatewayGlobal.DB.Find(&services)
 	// 查询所有service的地址
 	for i := range services {
 		var addresses []po.Address
-		global.GatewayGlobal.DB.Where("service_id = ?", services[i].ID).Find(&addresses)
+		GatewayGlobal.DB.Where("service_id = ?", services[i].ID).Find(&addresses)
 		services[i].Addresses = addresses
 	}
 	return services, true

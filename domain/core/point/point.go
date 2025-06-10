@@ -4,7 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"github.com/trancecho/mundo-gateway/global"
+	"github.com/trancecho/mundo-gateway/domain"
 	"github.com/trancecho/mundo-gateway/proto/point/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -16,7 +16,7 @@ import (
 
 // InitGlobalPoints 提供一个初始化函数，返回接口实现
 func InitGlobalPoints() {
-	global.PointsGlobal = NewPointClientServer()
+	domain.PointsGlobal = NewPointClientServer()
 }
 
 type PointClientServer struct {

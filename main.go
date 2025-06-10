@@ -7,7 +7,6 @@ import (
 	"github.com/trancecho/mundo-gateway/controller"
 	"github.com/trancecho/mundo-gateway/domain"
 	"github.com/trancecho/mundo-gateway/domain/core/point"
-	"github.com/trancecho/mundo-gateway/global"
 	"github.com/trancecho/mundo-gateway/initial"
 	"github.com/trancecho/mundo-gateway/job"
 	"github.com/trancecho/mundo-gateway/middle"
@@ -36,8 +35,8 @@ func main() {
 	point.InitGlobalPoints()
 
 	// redis
-	global.GatewayGlobal.Redis = domain.InitRedisClient()
-	if global.GatewayGlobal.Redis == nil {
+	domain.GatewayGlobal.Redis = domain.InitRedisClient()
+	if domain.GatewayGlobal.Redis == nil {
 		log.Fatal("Redis 初始化失败，程序终止")
 	}
 	job.StartPasswordRefreshTask()

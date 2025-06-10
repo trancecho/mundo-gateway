@@ -3,8 +3,8 @@ package initial
 import (
 	"errors"
 	"github.com/spf13/viper"
+	"github.com/trancecho/mundo-gateway/domain"
 	"github.com/trancecho/mundo-gateway/domain/core/limiter"
-	"github.com/trancecho/mundo-gateway/global"
 	"log"
 	"time"
 )
@@ -16,7 +16,7 @@ func InitVarFromConfigGlobal() {
 		log.Fatalln(err)
 	}
 	// 初始化配置
-	global.QueryPerMinLimitGlobal = viper.GetInt("limit.qpm")
+	domain.QueryPerMinLimitGlobal = viper.GetInt("limit.qpm")
 }
 
 func check() error {
@@ -33,15 +33,15 @@ func check() error {
 	return nil
 }
 func InitLimiterGlobal() {
-	if global.LimiterGlobal == nil {
+	if domain.LimiterGlobal == nil {
 		// 初始化限流器
-		global.LimiterGlobal = limiter.NewAccessLimiter()
-		if global.LimiterGlobal == nil {
+		domain.LimiterGlobal = limiter.NewAccessLimiter()
+		if domain.LimiterGlobal == nil {
 			log.Fatal("限流器初始化失败")
 		}
 		// 每分钟（从其他节点同步。如果是本地的话，会立刻刷新）
-		global.LimiterGlobal.StartCacheRefresher(time.Minute * 1)
-		global.LimiterGlobal.StartIpRateRecorderFlusher()
+		domain.LimiterGlobal.StartCacheRefresher(time.Minute * 1)
+		domain.LimiterGlobal.StartIpRateRecorderFlusher()
 	} else {
 		log.Println("限流器已存在，跳过初始化")
 	}

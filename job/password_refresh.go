@@ -2,7 +2,7 @@ package job
 
 import (
 	"context"
-	"github.com/trancecho/mundo-gateway/global"
+	"github.com/trancecho/mundo-gateway/domain"
 	"log"
 	"time"
 
@@ -25,7 +25,7 @@ func StartPasswordRefreshTask() {
 func refreshPassword() {
 	ctx := context.Background()
 	newPassword := generatePassword()
-	err := global.GatewayGlobal.Redis.Set(ctx, "gateway:register:password", newPassword, 2*time.Hour).Err()
+	err := domain.GatewayGlobal.Redis.Set(ctx, "gateway:register:password", newPassword, 2*time.Hour).Err()
 	if err != nil {
 		log.Println("刷新注册密码失败:", err)
 		return

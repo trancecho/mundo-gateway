@@ -1,18 +1,14 @@
-package global
+package domain
 
 import (
-	"errors"
-	"github.com/spf13/viper"
-	"github.com/trancecho/mundo-gateway/domain"
 	"github.com/trancecho/mundo-gateway/domain/i"
-	"log"
 )
 
 // 全局变量
 
 // 全局变量声明
 var (
-	GatewayGlobal *domain.Gateway
+	GatewayGlobal *Gateway
 	PointsGlobal  i.PointClientInterface
 	LimiterGlobal i.ILimiter
 )

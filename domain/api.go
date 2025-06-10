@@ -3,7 +3,6 @@ package domain
 import (
 	"errors"
 	"github.com/trancecho/mundo-gateway/controller/dto"
-	"github.com/trancecho/mundo-gateway/global"
 	"github.com/trancecho/mundo-gateway/po"
 )
 
@@ -39,7 +38,7 @@ func CreateAPIService(req *dto.APICreateReq) (*po.API, error) {
 	var err error
 	var apiPO po.API
 	var servicePO po.Service
-	db := global.GatewayGlobal.DB
+	db := GatewayGlobal.DB
 	servicePO.Name = req.ServiceName
 
 	// 如果没有service直接返回
@@ -60,7 +59,7 @@ func CreateAPIService(req *dto.APICreateReq) (*po.API, error) {
 	if servicePO.Protocol == "http" {
 		// api不存在
 		db.Create(&apiPO)
-		for _, service := range global.GatewayGlobal.Services {
+		for _, service := range GatewayGlobal.Services {
 			if service.ServicePOId == servicePO.ID {
 				service.APIs = append(service.APIs, APIBO{
 					Id:         apiPO.ID,
@@ -89,7 +88,7 @@ func CreateAPIService(req *dto.APICreateReq) (*po.API, error) {
 		if err != nil {
 			return nil, err
 		}
-		for _, service := range global.GatewayGlobal.Services {
+		for _, service := range GatewayGlobal.Services {
 			if service.ServicePOId == servicePO.ID {
 				service.APIs = append(service.APIs, APIBO{
 					Id:         apiPO.ID,
@@ -119,7 +118,7 @@ func CreateAPIService(req *dto.APICreateReq) (*po.API, error) {
 // GetAPIService 获取API
 func GetAPIService(id int64) (*po.API, error) {
 	var apiPO po.API
-	db := global.GatewayGlobal.DB
+	db := GatewayGlobal.DB
 	affected := db.First(&apiPO, id).RowsAffected
 	if affected == 0 {
 		return nil, errors.New("API不存在")
@@ -131,7 +130,7 @@ func GetAPIService(id int64) (*po.API, error) {
 func UpdateAPIService(dto *dto.APIUpdateReq) (*po.API, error) {
 	var err error
 	var apiPO po.API
-	db := global.GatewayGlobal.DB
+	db := GatewayGlobal.DB
 	apiPO.ID = dto.Id
 
 	// 查找api
@@ -148,7 +147,7 @@ func UpdateAPIService(dto *dto.APIUpdateReq) (*po.API, error) {
 
 	err = db.Save(&apiPO).Error
 
-	for _, service := range global.GatewayGlobal.Services {
+	for _, service := range GatewayGlobal.Services {
 		if service.ServicePOId == apiPO.ServiceId {
 			for _, api := range service.APIs {
 				if api.Id == apiPO.ID {
@@ -171,13 +170,13 @@ func UpdateAPIService(dto *dto.APIUpdateReq) (*po.API, error) {
 // DeleteAPIService 删除API
 func DeleteAPIService(id int64) error {
 	var apiPO po.API
-	db := global.GatewayGlobal.DB
+	db := GatewayGlobal.DB
 	affected := db.First(&apiPO, id).RowsAffected
 	if affected == 0 {
 		return errors.New("API不存在")
 	}
 	err := db.Delete(&apiPO).Error
-	for _, service := range global.GatewayGlobal.Services {
+	for _, service := range GatewayGlobal.Services {
 		if service.ServicePOId == apiPO.ServiceId {
 			for i, api := range service.APIs {
 				if api.Id == apiPO.ID {
@@ -195,7 +194,7 @@ func DeleteAPIService(id int64) error {
 // ListAPIService 获取API列表
 func ListAPIService(serviceName string) ([]*po.API, error) {
 	var apiPOs []*po.API
-	db := global.GatewayGlobal.DB
+	db := GatewayGlobal.DB
 	if serviceName == "all" {
 		err := db.Find(&apiPOs).Error
 		if err != nil {
@@ -220,7 +219,7 @@ func ListAPIService(serviceName string) ([]*po.API, error) {
 
 // GetAPIByPathAndMethod 检查数据库中是否已存在相同路径和方法的 API
 func GetAPIByPathAndMethod(path string, method string, serviceName string) (*po.API, error) {
-	db := global.GatewayGlobal.DB
+	db := GatewayGlobal.DB
 	// 查询serviceName对应的id
 	var servicePO po.Service
 	affected := db.Where("name = ?", serviceName).
@@ -248,7 +247,7 @@ func GetAPIByPathAndMethod(path string, method string, serviceName string) (*po.
 func DeleteAPIsByServiceID(serviceID int64) error {
 	// 假设使用 ORM 来删除所有与服务 ID 相关的 API
 	var apis []po.API
-	db := global.GatewayGlobal.DB
+	db := GatewayGlobal.DB
 
 	// 查询所有与服务 ID 相关的 API
 	if err := db.Where("service_id = ?", serviceID).Find(&apis).Error; err != nil {

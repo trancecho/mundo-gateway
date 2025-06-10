@@ -4,7 +4,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/trancecho/mundo-gateway/controller/dto"
 	"github.com/trancecho/mundo-gateway/domain"
-	"github.com/trancecho/mundo-gateway/global"
 	"github.com/trancecho/mundo-gateway/util"
 	"log"
 	"strconv"
@@ -39,7 +38,7 @@ func CreateAPIController(c *gin.Context) {
 		util.ServerError(c, 200, "API创建失败:"+err.Error())
 		return
 	}
-	global.GatewayGlobal.FlushGateway()
+	domain.GatewayGlobal.FlushGateway()
 
 	util.Ok(c, "API创建成功", gin.H{
 		"api": *apiPO,
@@ -71,7 +70,7 @@ func UpdateAPIController(c *gin.Context) {
 		util.ServerError(c, 5, "API更新失败")
 		return
 	}
-	global.GatewayGlobal.FlushGateway()
+	domain.GatewayGlobal.FlushGateway()
 
 	util.Ok(c, "API更新成功", gin.H{
 		"api": apiPO,
@@ -91,7 +90,7 @@ func DeleteAPIController(c *gin.Context) {
 		util.ServerError(c, 2, "API删除失败")
 		return
 	}
-	global.GatewayGlobal.FlushGateway()
+	domain.GatewayGlobal.FlushGateway()
 
 	util.Ok(c, "API删除成功", nil)
 }

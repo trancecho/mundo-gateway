@@ -2,7 +2,8 @@ package middle
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/trancecho/mundo-gateway/global"
+	"github.com/trancecho/mundo-gateway/domain"
+	"github.com/trancecho/mundo-gateway/util"
 )
 
 func LimitRequest() gin.HandlerFunc {
@@ -10,18 +11,14 @@ func LimitRequest() gin.HandlerFunc {
 		// 获取请求的IP地址
 		ip := c.ClientIP()
 
-		if global.LimiterGlobal.IsBlackListed(ip) {
-			c.JSON(500, gin.H{
-				"error": "黑名单用户",
-			})
+		if domain.LimiterGlobal.IsBlackListed(ip) {
+			util.ServerError(c, util.RateLimitExceeded, "请联系管理员解封")
 			c.Abort()
 			return
 		}
 		// 检查限流器
-		if !global.LimiterGlobal.AllowIp(ip) {
-			c.JSON(500, gin.H{
-				"error": "请求限流，已进入黑名单",
-			})
+		if !domain.LimiterGlobal.AllowIp(ip) {
+			util.ServerError(c, util.RateLimitExceeded, "请求过于频繁")
 			c.Abort()
 			return
 		}

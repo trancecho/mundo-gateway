@@ -65,6 +65,7 @@ const (
 	DefaultError              = "Error.Default"
 	QueryParamError           = "Error.QueryParam"
 	RedisDynamicPasswordError = "Error.RedisDynamicPassword"
+	RateLimitExceeded         = "Error.RateLimitExceeded"
 
 	ResourceAlreadyExistsWarning = "Warning.ResourceAlreadyExists"
 

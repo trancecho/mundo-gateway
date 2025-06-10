@@ -29,6 +29,9 @@ func MakeRoutes(r *gin.Engine) {
 	r.GET("/gateway/api/list", controller.ListAPIController)
 
 	r.GET("/gateway/flush", controller.FlushAPIController)
+	r.GET("/gateway/ping", func(c *gin.Context) {
+		util.Ok(c, "pong", nil)
+	})
 
 	//健康检查接口
 	r.GET("/gateway/service/health", controller.HealthStatusHandler)

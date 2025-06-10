@@ -2,7 +2,6 @@ package controller
 
 import (
 	"fmt"
-	"github.com/trancecho/mundo-gateway/global"
 	"log"
 	"strings"
 
@@ -41,7 +40,7 @@ func HandleRequestController(c *gin.Context) {
 	var prefixOkFlag bool
 	// 用Prefix列表匹配找到对应的服务
 	// todo 可以进行o1优化，用map存储
-	for _, curPrefix := range global.GatewayGlobal.Prefixes {
+	for _, curPrefix := range domain.GatewayGlobal.Prefixes {
 		log.Println("curPrefix", curPrefix)
 		log.Println("prefix", prefix)
 		if curPrefix.Name == prefix {
@@ -67,8 +66,8 @@ func HandleRequestController(c *gin.Context) {
 	//log.Println("servicePO", servicePO)
 
 	var serviceBO domain.ServiceBO
-	log.Println("services", global.GatewayGlobal.Services)
-	for _, bo := range global.GatewayGlobal.Services {
+	log.Println("services", domain.GatewayGlobal.Services)
+	for _, bo := range domain.GatewayGlobal.Services {
 		// 一个prefix只存在一个服务
 		if bo.Prefix == prefix {
 			serviceBO = bo
@@ -121,13 +120,13 @@ func HandleRequestController(c *gin.Context) {
 }
 
 func InitGateway() {
-	global.GatewayGlobal = domain.NewGateway()
+	domain.GatewayGlobal = domain.NewGateway()
 	//log.Println("初始化网关", domain.GatewayGlobal)
 }
 
 func FlushAPIController(c *gin.Context) {
 	// 重新加载API
-	global.GatewayGlobal.FlushGateway()
+	domain.GatewayGlobal.FlushGateway()
 	util.Ok(c, "网关刷新成功", nil)
 }
 

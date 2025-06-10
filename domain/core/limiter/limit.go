@@ -6,7 +6,6 @@ import (
 	"github.com/go-redis/redis/v8"
 	"github.com/trancecho/mundo-gateway/domain"
 	"github.com/trancecho/mundo-gateway/domain/i"
-	"github.com/trancecho/mundo-gateway/global"
 	"log"
 	"sync"
 	"sync/atomic"
@@ -125,9 +124,9 @@ func (this *AccessLimiter) StartCacheRefresher(duration time.Duration) {
 			select {
 			case <-ticker.C:
 				if err := this.SyncBlackList(); err != nil {
-					log.Printf("Error syncing blacklist: %v\n", err)
+					log.Printf("从redis同步黑名单失败: %v\n", err)
 				} else {
-					log.Println("Black list cache refreshed successfully")
+					log.Println("从redis同步黑名单成功")
 				}
 			}
 		}
@@ -152,11 +151,15 @@ func (this *AccessLimiter) AllowIp(ip string) bool {
 		this.ipRateRecorder[ip] = recorder
 	}
 	this.limiterLock.Unlock()
+	// 打印调试
+	//this.limiterLock.Lock()
+	//log.Println("aaa", this.ipRateRecorder[ip].cnt.Load())
+	//defer this.limiterLock.Unlock()
 	// 更新访问时间
 	recorder.cnt.Add(1)                              // 增加访问计数
 	recorder.lastAccess.Store(time.Now().UnixNano()) // 更新最后访问时间戳
 	// 检查访问频率是否超过限制
-	if recorder.cnt.Load() > int64(global.QueryPerMinLimitGlobal) {
+	if recorder.cnt.Load() > int64(domain.QueryPerMinLimitGlobal) {
 		// 如果超过限制，加入黑名单
 		if this.AddToBlackList(ip) {
 			this.limiterLock.Lock()
@@ -166,7 +169,7 @@ func (this *AccessLimiter) AllowIp(ip string) bool {
 			return false
 		}
 	}
-	log.Println("IP allowed:", ip)
+	log.Println("IP 访问成功:", ip)
 	return true
 }
 func (this *AccessLimiter) StartIpRateRecorderFlusher() {
@@ -184,6 +187,7 @@ func (this *AccessLimiter) StartIpRateRecorderFlusher() {
 						log.Println("IP removed from rate limiter due to inactivity:", ip)
 					} else {
 						recorder.cnt.Store(0) // 重置访问计数
+						log.Println("IP rate recorder flushed:", ip, "Count:", recorder.cnt.Load())
 					}
 				}
 				this.limiterLock.Unlock()
