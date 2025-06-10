@@ -11,6 +11,12 @@ func LimitRequest() gin.HandlerFunc {
 		// 获取请求的IP地址
 		ip := c.ClientIP()
 
+		if domain.LimiterGlobal.IsWhiteListed(ip) {
+			// 如果IP在白名单中，直接放行
+			c.Next()
+			return
+		}
+
 		if domain.LimiterGlobal.IsBlackListed(ip) {
 			util.ServerError(c, util.RateLimitExceeded, "请联系管理员解封")
 			c.Abort()

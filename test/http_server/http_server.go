@@ -18,7 +18,7 @@ func main() {
 		})
 	})
 	client.HttpConn(r)
-	//BlackListTest(client)
+	BlackListTest(client)
 	//	启动服务
 	err = r.Run(":6666")
 	if err != nil {

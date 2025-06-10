@@ -6,6 +6,7 @@ import (
 	"github.com/go-redis/redis/v8"
 	"github.com/trancecho/mundo-gateway/domain"
 	"github.com/trancecho/mundo-gateway/domain/i"
+	"gorm.io/gorm"
 	"log"
 	"sync"
 	"sync/atomic"
@@ -32,13 +33,29 @@ type AccessLimiter struct {
 	blackListCache map[string]bool //黑名单缓存
 	blackListLock  sync.RWMutex    //缓存读写锁
 	//cacheTTL       time.Duration   //缓存有效期
+
+	//白名单直接读数据库
+	whiteListCache map[string]bool //白名单缓存
+	whiteListLock  sync.RWMutex    //白名单缓存读写锁
+	db             *gorm.DB
+}
+
+func (this *AccessLimiter) IsWhiteListed(ip string) bool {
+	this.whiteListLock.RLock()
+	_, ok := this.whiteListCache[ip]
+	this.whiteListLock.RUnlock()
+	if !ok {
+		return false
+	} else {
+		return true
+	}
 }
 
 // 实现接口
 var _ i.ILimiter = (*AccessLimiter)(nil)
 
 // 全局一个
-func NewAccessLimiter() *AccessLimiter {
+func NewAccessLimiter(db *gorm.DB) *AccessLimiter {
 	// 创建Redis客户端
 	rdb := domain.InitRedisClient()
 
@@ -47,6 +64,8 @@ func NewAccessLimiter() *AccessLimiter {
 		ipRateRecorder: make(map[string]*IpRateRecorder),
 		blackListCache: make(map[string]bool),
 		blackListKey:   "gateway:blacklist",
+		whiteListCache: make(map[string]bool),
+		db:             db,
 	}
 }
 
@@ -94,6 +113,14 @@ func (this *AccessLimiter) AddToBlackList(ip string) bool {
 	return true
 }
 
+// 添加ip到白名单
+func (this *AccessLimiter) AddToWhiteList(ip string) bool {
+	this.whiteListLock.Lock()
+	this.whiteListCache[ip] = true
+	this.whiteListLock.Unlock()
+	return true
+}
+
 // 同步黑名单到本地缓存
 func (this *AccessLimiter) SyncBlackList() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -125,9 +152,22 @@ func (this *AccessLimiter) StartCacheRefresher(duration time.Duration) {
 			case <-ticker.C:
 				if err := this.SyncBlackList(); err != nil {
 					log.Printf("从redis同步黑名单失败: %v\n", err)
-				} else {
-					log.Println("从redis同步黑名单成功")
 				}
+				// 同步白名单
+				var ips []string
+				err := this.db.Table("addresses").Pluck("address", &ips).Error
+				if err != nil {
+					log.Printf("从mysql同步白名单失败: %v\n", err)
+				}
+				var ipHash map[string]bool
+				ipHash = make(map[string]bool)
+				for _, ip := range ips {
+					ipHash[ip] = true
+				}
+				this.whiteListLock.Lock()
+				this.whiteListCache = ipHash
+				this.whiteListLock.Unlock()
+				log.Println("同步黑名单白名单成功")
 			}
 		}
 	}()

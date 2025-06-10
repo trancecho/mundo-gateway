@@ -133,7 +133,12 @@ func UnregisterServiceService(name string, address string) bool {
 }
 
 // 创建服务
-func CreateServiceService(dto *dto.ServiceCreateReq) (*po.Service, bool, error) {
+func CreateServiceService(dto *dto.ServiceCreateReq, ip string) (*po.Service, bool, error) {
+	ok := LimiterGlobal.AddToWhiteList(ip)
+	if !ok {
+		log.Println("IP白名单添加失败:", ip)
+		return nil, false, errors.New("IP白名单添加失败")
+	}
 	var err error
 	var servicePO po.Service
 	// 根据name查找service

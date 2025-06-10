@@ -9,4 +9,6 @@ type ILimiter interface {
 	AllowIp(ip string) bool
 	StartCacheRefresher(duration time.Duration)
 	StartIpRateRecorderFlusher()
+	IsWhiteListed(ip string) bool
+	AddToWhiteList(ip string) bool
 }

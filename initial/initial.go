@@ -35,7 +35,7 @@ func check() error {
 func InitLimiterGlobal() {
 	if domain.LimiterGlobal == nil {
 		// 初始化限流器
-		domain.LimiterGlobal = limiter.NewAccessLimiter()
+		domain.LimiterGlobal = limiter.NewAccessLimiter(domain.GatewayGlobal.DB)
 		if domain.LimiterGlobal == nil {
 			log.Fatal("限流器初始化失败")
 		}

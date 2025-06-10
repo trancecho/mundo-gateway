@@ -79,7 +79,7 @@ func CreateServiceController(c *gin.Context) {
 		return
 	}
 
-	servicePO, ok, err := domain.CreateServiceService(&req)
+	servicePO, ok, err := domain.CreateServiceService(&req, c.ClientIP())
 	if !ok && err != nil {
 		domain.GatewayGlobal.FlushGateway()
 		util.ServerError(c, util.ResourceAlreadyExistsWarning, "服务创建失败:"+err.Error())
