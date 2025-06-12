@@ -1,6 +1,8 @@
 package routes
 
 import (
+	"github.com/trancecho/mundo-gateway/domain/core/point"
+	"github.com/trancecho/mundo-gateway/middle"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -27,9 +29,21 @@ func MakeRoutes(r *gin.Engine) {
 	r.GET("/gateway/api/list", controller.ListAPIController)
 
 	r.GET("/gateway/flush", controller.FlushAPIController)
+	r.GET("/gateway/ping", func(c *gin.Context) {
+		util.Ok(c, "pong", nil)
+	})
 
 	//健康检查接口
 	r.GET("/gateway/service/health", controller.HealthStatusHandler)
+
+	//积分服务接口
+	s1 := r.Group("/gateway/point", middle.CheckCondition())
+	{
+		s1.POST("/change", point.ChangePointAndExperience)
+		s1.POST("/sign", point.Sign)
+		s1.GET("/info", point.PointsInfo)
+		s1.GET("/stats", point.GetStats)
+	}
 
 	// 通配符路由，排除 /gateway 前缀
 	r.NoRoute(func(c *gin.Context) {

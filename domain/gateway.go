@@ -1,20 +1,21 @@
 package domain
 
 import (
+	"github.com/go-redis/redis/v8"
 	"github.com/spf13/viper"
+	"github.com/trancecho/mundo-gateway/po"
+	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
 	"log"
 	"net/http"
 	"sync"
 	"time"
-
-	"github.com/trancecho/mundo-gateway/po"
-	"gorm.io/driver/mysql"
-	"gorm.io/gorm"
 )
 
 // GatewayGlobal 第一个功能，代理路由
 type Gateway struct {
 	DB       *gorm.DB
+	Redis    *redis.Client
 	Prefixes []Prefix
 	Services []ServiceBO
 	globalKV sync.Map //可以先忽略
@@ -158,3 +159,11 @@ func (this *Gateway) FlushGateway() {
 }
 
 //增加服务健康检查
+
+//func RegisterMux(mux *runtime.ServeMux, service string) error {
+//	serve, ok := GetServiceByName(service)
+//	if !ok {
+//		return fmt.Errorf("服务不存在")
+//	}
+//
+//}

@@ -46,6 +46,21 @@ func CreateServiceController(c *gin.Context) {
 		util.ClientError(c, 310, "protocol不能为空")
 		return
 	}
+	if domain.GatewayGlobal == nil || domain.GatewayGlobal.Redis == nil {
+		util.ServerError(c, util.DefaultError, "Redis 未初始化")
+		return
+	}
+
+	// ✅ Redis 密码校验
+	redisPassword, err := domain.GatewayGlobal.Redis.Get(c, "gateway:register:password").Result()
+	if err != nil {
+		util.ServerError(c, util.DefaultError, "无法读取注册密码，请联系管理员")
+		return
+	}
+	if req.Password != redisPassword {
+		util.ClientError(c, util.QueryParamError, "注册密码错误")
+		return
+	}
 	// 根据协议判断地址是否合规 目前只有http和grpc
 	if req.Protocol == "http" {
 		// 检查地址是否以 http:// 或 https:// 开头
@@ -54,9 +69,9 @@ func CreateServiceController(c *gin.Context) {
 			return
 		}
 	} else if req.Protocol == "grpc" {
-		if req.Address[:7] != "grpc://" {
-			log.Println(req.Address[:7])
-			util.ServerError(c, 600, "grpc协议地址不能为空")
+		// 修复gRPC地址验证逻辑
+		if !strings.HasPrefix(req.Address, "grpc://") && !strings.HasPrefix(req.Address, "grpcs://") {
+			util.ServerError(c, 600, "grpc协议地址格式不正确，需以grpc://或grpcs://开头")
 			return
 		}
 	} else {
@@ -64,10 +79,10 @@ func CreateServiceController(c *gin.Context) {
 		return
 	}
 
-	servicePO, ok, err := domain.CreateServiceService(&req)
+	servicePO, ok, err := domain.CreateServiceService(&req, c.ClientIP())
 	if !ok && err != nil {
 		domain.GatewayGlobal.FlushGateway()
-		util.ServerError(c, 4, "服务创建失败:"+err.Error())
+		util.ServerError(c, util.ResourceAlreadyExistsWarning, "服务创建失败:"+err.Error())
 		return
 	}
 	domain.GatewayGlobal.FlushGateway()
