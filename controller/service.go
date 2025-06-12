@@ -61,6 +61,14 @@ func CreateServiceController(c *gin.Context) {
 		util.ClientError(c, util.QueryParamError, "注册密码错误")
 		return
 	}
+	//todo 更新
+	ok := domain.LimiterGlobal.AddToWhiteList(c.ClientIP())
+	if !ok {
+		log.Println("IP白名单添加失败:", c.ClientIP())
+	} else {
+		log.Println("IP白名单添加成功:", c.ClientIP())
+	}
+
 	// 根据协议判断地址是否合规 目前只有http和grpc
 	if req.Protocol == "http" {
 		// 检查地址是否以 http:// 或 https:// 开头
