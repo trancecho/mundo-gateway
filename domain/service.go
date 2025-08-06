@@ -138,6 +138,8 @@ func CreateServiceService(dto *dto.ServiceCreateReq, ip string) (*po.Service, bo
 	if !ok {
 		log.Println("IP白名单添加失败:", ip)
 		return nil, false, errors.New("IP白名单添加失败")
+	} else {
+		log.Println("IP白名单添加成功:", ip)
 	}
 	var err error
 	var servicePO po.Service
