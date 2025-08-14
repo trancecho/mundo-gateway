@@ -3,9 +3,9 @@ package limiter
 import (
 	"context"
 	"fmt"
-	"github.com/go-redis/redis/v8"
+	"github.com/redis/go-redis/v9"
 	"github.com/trancecho/mundo-gateway/domain"
-	"github.com/trancecho/mundo-gateway/domain/i"
+	"github.com/trancecho/mundo-gateway/i"
 	"gorm.io/gorm"
 	"log"
 	"sync"
@@ -57,10 +57,8 @@ func (this *AccessLimiter) IsWhiteListed(ip string) bool {
 // 全局一个
 func NewAccessLimiter(db *gorm.DB) *AccessLimiter {
 	// 创建Redis客户端
-	rdb := domain.InitRedisClient()
-
 	return &AccessLimiter{
-		redisClient:    rdb,
+		redisClient:    domain.GatewayGlobal.Redis,
 		ipRateRecorder: make(map[string]*IpRateRecorder),
 		blackListCache: make(map[string]bool),
 		blackListKey:   "gateway:blacklist",

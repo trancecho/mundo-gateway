@@ -26,8 +26,10 @@ func HTTPProxyHandler(c *gin.Context, err error, address string, serviceName str
 		}
 	}
 
-	// 创建 HTTP 客户端来发送代理请求
-	client := &http.Client{}
+	client := GatewayGlobal.HTTPClient
+	//client := &http.Client{
+	//	Timeout: 10 * 60, // 设置超时时间为10分钟
+	//}
 	resp, err := client.Do(proxyReq)
 	if err != nil {
 		util.ServerError(c, 3, "代理请求失败。访问服务名称："+serviceName)
@@ -52,6 +54,5 @@ func HTTPProxyHandler(c *gin.Context, err error, address string, serviceName str
 		return
 	}
 
-	// todo 日志记录：成功完成代理请求
 	log.Println("成功代理请求", c.Request.URL, "到", address+c.Request.URL.Path)
 }

@@ -27,7 +27,6 @@ func main() {
 }
 
 func BlackListTest(client *gatewaySdk.GatewayService) {
-	// 启动一个协程，并发100访问gateway
 	wg := sync.WaitGroup{}
 	wg.Add(50)
 	for i := 0; i < 50; i++ {

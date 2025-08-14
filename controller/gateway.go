@@ -2,12 +2,11 @@ package controller
 
 import (
 	"fmt"
-	"log"
-	"strings"
-
 	"github.com/gin-gonic/gin"
 	"github.com/trancecho/mundo-gateway/domain"
 	"github.com/trancecho/mundo-gateway/util"
+	"log"
+	"strings"
 )
 
 //// 创建反向代理
@@ -108,7 +107,6 @@ func HandleRequestController(c *gin.Context) {
 	// 获得下一个地址
 	address := serviceBO.GetNextAddress()
 
-	log.Println("address", address)
 	switch serviceBO.Protocol {
 	case "http":
 		domain.HTTPProxyHandler(c, err, address, serviceBO.Name)
