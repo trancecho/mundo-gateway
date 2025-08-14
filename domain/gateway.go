@@ -1,7 +1,7 @@
 package domain
 
 import (
-	"github.com/go-redis/redis/v8"
+	"github.com/redis/go-redis/v9"
 	"github.com/spf13/viper"
 	"github.com/trancecho/mundo-gateway/po"
 	"gorm.io/driver/mysql"
@@ -21,7 +21,7 @@ type Gateway struct {
 	globalKV sync.Map //可以先忽略
 	//读写锁
 	sync.RWMutex
-	HTTPClient *http.Client //http客户端
+	HTTPClient *http.Client //
 }
 
 // NewGateway 创建一个全局网关shili
@@ -31,7 +31,7 @@ func NewGateway() *Gateway {
 	// 会自己注册一个地址的。
 	var db *gorm.DB
 	pwd := viper.GetString("mysql.pwd")
-	dsn := "root:" + pwd + "@tcp(" + viper.GetString("mysql.host") + ":" + viper.GetString("mysql.port") + ")/md_gateway?charset=utf8mb4&parseTime=True&loc=Local"
+	dsn := "root:" + pwd + "@tcp(" + viper.GetString("mysql.host") + ":" + viper.GetString("mysql.port") + ")/" + viper.GetString("mysql.db") + "?charset=utf8mb4&parseTime=True&loc=Local"
 	db, err = gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
 		log.Fatalln("failed to connect database", err)
@@ -92,8 +92,8 @@ func NewGateway() *Gateway {
 	// 初始化 HTTP 客户端
 	httpClient := &http.Client{
 		Transport: &http.Transport{
-			MaxIdleConns:        100,
-			MaxIdleConnsPerHost: 10,
+			MaxIdleConns:        10000,
+			MaxIdleConnsPerHost: 1000,
 			IdleConnTimeout:     30 * time.Second,
 		},
 		Timeout: 10 * time.Second,

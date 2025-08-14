@@ -35,7 +35,7 @@ func main() {
 	point.InitGlobalPoints()
 
 	// redis
-	domain.GatewayGlobal.Redis = domain.InitRedisClient()
+	domain.GatewayGlobal.Redis = initial.InitRedisClient()
 	if domain.GatewayGlobal.Redis == nil {
 		log.Fatal("Redis 初始化失败，程序终止")
 	}

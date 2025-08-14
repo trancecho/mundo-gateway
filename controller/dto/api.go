@@ -5,7 +5,7 @@ type APICreateReq struct {
 	Path        string `json:"path"`
 	Method      string `json:"method"`
 	GrpcService string `json:"grpc_service"`
-	GrpcMethod  string `json:"grpc_method"`
+	GrpcMethod  string `json:"grpc_method"  `
 }
 
 type APIUpdateReq struct {

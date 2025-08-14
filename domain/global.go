@@ -1,7 +1,7 @@
 package domain
 
 import (
-	"github.com/trancecho/mundo-gateway/domain/i"
+	"github.com/trancecho/mundo-gateway/i"
 )
 
 // 全局变量
