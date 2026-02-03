@@ -2,6 +2,7 @@ package domain
 
 import (
 	"errors"
+
 	"github.com/trancecho/mundo-gateway/controller/dto"
 	"github.com/trancecho/mundo-gateway/po"
 )
@@ -167,13 +168,13 @@ func UpdateAPIService(dto *dto.APIUpdateReq) (*po.API, error) {
 	return &apiPO, nil
 }
 
-// DeleteAPIService 删除API
-func DeleteAPIService(id int64) error {
+// DeleteAPIService 删除API，返回其所属的 serviceId，便于做增量刷新
+func DeleteAPIService(id int64) (int64, error) {
 	var apiPO po.API
 	db := GatewayGlobal.DB
 	affected := db.First(&apiPO, id).RowsAffected
 	if affected == 0 {
-		return errors.New("API不存在")
+		return 0, errors.New("API不存在")
 	}
 	err := db.Delete(&apiPO).Error
 	for _, service := range GatewayGlobal.Services {
@@ -186,9 +187,9 @@ func DeleteAPIService(id int64) error {
 		}
 	}
 	if err != nil {
-		return err
+		return 0, err
 	}
-	return nil
+	return apiPO.ServiceId, nil
 }
 
 // ListAPIService 获取API列表

@@ -1,27 +1,31 @@
 package domain
 
 import (
-	"github.com/redis/go-redis/v9"
-	"github.com/spf13/viper"
-	"github.com/trancecho/mundo-gateway/po"
-	"gorm.io/driver/mysql"
-	"gorm.io/gorm"
 	"log"
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/redis/go-redis/v9"
+	"github.com/spf13/viper"
+	"github.com/trancecho/mundo-gateway/po"
+
+	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
 )
 
 // GatewayGlobal 第一个功能，代理路由
 type Gateway struct {
-	DB       *gorm.DB
-	Redis    *redis.Client
-	Prefixes []Prefix
-	Services []ServiceBO
-	globalKV sync.Map //可以先忽略
+	DB         *gorm.DB
+	Redis      *redis.Client
+	Prefixes   []Prefix
+	Services   []ServiceBO
+	ServiceMap map[int64]ServiceBO
+	globalKV   sync.Map //可以先忽略
 	//读写锁
 	sync.RWMutex
 	HTTPClient *http.Client //
+
 }
 
 // NewGateway 创建一个全局网关shili
@@ -98,18 +102,27 @@ func NewGateway() *Gateway {
 		},
 		Timeout: 10 * time.Second,
 	}
+	// 初始化 ServiceMap，作为内存中的主索引
+	serviceMap := make(map[int64]ServiceBO, len(serviceBOs))
+	for _, bo := range serviceBOs {
+		serviceMap[bo.ServicePOId] = bo
+	}
 
-	return &Gateway{
+	gateway := &Gateway{
 		DB:         db,
 		Services:   serviceBOs,
+		ServiceMap: serviceMap,
 		Prefixes:   prefixes,
 		HTTPClient: httpClient,
 	}
+
+	return gateway
+
 }
 
 // FlushGateway 重新获取service列表
 func (this *Gateway) FlushGateway() {
-	// todo 可以优化
+	// todo 可以优化,把全量更新，改成增量更新
 	// 重新获取service列表
 	var servicesPO []po.Service
 	this.DB.Preload("Addresses").Preload("APIs").Where("available=?", true).
@@ -151,11 +164,92 @@ func (this *Gateway) FlushGateway() {
 		prefixes = append(prefixes, Prefix{Name: service.Prefix, ServiceId: service.ID})
 	}
 
+	// 根据最新的 serviceBOs 构建 ServiceMap
+	serviceMap := make(map[int64]ServiceBO, len(serviceBOs))
+	for _, bo := range serviceBOs {
+		serviceMap[bo.ServicePOId] = bo
+	}
+
 	// 更新全局网关
 	this.RWMutex.Lock()
 	defer this.RWMutex.Unlock()
 	this.Services = serviceBOs
+	this.ServiceMap = serviceMap
 	this.Prefixes = prefixes
+
+}
+
+// PartialFlushGateway
+func (this *Gateway) PartialFlushGateway(serviceID int64) {
+	// 先从 DB 查询当前 service 最新状态（避免长时间持有锁）
+	var service po.Service
+	err := this.DB.Preload("Addresses").
+		Where("id = ?", serviceID).First(&service).Error
+
+	this.RWMutex.Lock()
+	defer this.RWMutex.Unlock()
+
+	//
+	if this.ServiceMap == nil {
+		this.ServiceMap = make(map[int64]ServiceBO, len(this.Services))
+		for _, svc := range this.Services {
+			this.ServiceMap[svc.ServicePOId] = svc
+		}
+	}
+	if err == gorm.ErrRecordNotFound || (err == nil && !service.Available) {
+		delete(this.ServiceMap, serviceID)
+	} else if err != nil {
+		log.Println("PartialFlushGateway 查询 service 失败:", err)
+		return
+	} else {
+		var addresses []*Address
+		for _, addr := range service.Addresses {
+			addresses = append(addresses, &Address{
+				Address:   addr.Address,
+				LastBeat:  time.Now(),
+				IsHealthy: true,
+			})
+		}
+
+		// 转换 APIs
+		var apis []APIBO
+		for _, api := range service.APIs {
+			apis = append(apis, APIBO{
+				Id:         api.ID,
+				HttpPath:   api.HttpPath,
+				HttpMethod: api.HttpMethod,
+				GrpcMethodMeta: GrpcMethodMetaBO{
+					ApiId:       api.ID,
+					ServiceName: api.GrpcMethodMeta.ServiceName,
+					MethodName:  api.GrpcMethodMeta.MethodName,
+				},
+			})
+		}
+
+		newBO := ServiceBO{
+			ServicePOId: service.ID,
+			Prefix:      service.Prefix,
+			Name:        service.Name,
+			Addresses:   addresses,
+			Protocol:    service.Protocol,
+			Available:   service.Available,
+			APIs:        apis,
+		}
+
+		// ServiceMap 中覆盖 / 新增这一条
+		this.ServiceMap[serviceID] = newBO
+	}
+
+	// 统一用 ServiceMap 重新构建 Services 和 Prefixes
+	this.Services = this.Services[:0]
+	this.Prefixes = this.Prefixes[:0]
+	for id, bo := range this.ServiceMap {
+		this.Services = append(this.Services, bo)
+		this.Prefixes = append(this.Prefixes, Prefix{
+			Name:      bo.Prefix,
+			ServiceId: id,
+		})
+	}
 }
 
 //增加服务健康检查

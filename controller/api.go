@@ -1,12 +1,13 @@
 package controller
 
 import (
+	"log"
+	"strconv"
+
 	"github.com/gin-gonic/gin"
 	"github.com/trancecho/mundo-gateway/controller/dto"
 	"github.com/trancecho/mundo-gateway/domain"
 	"github.com/trancecho/mundo-gateway/util"
-	"log"
-	"strconv"
 )
 
 func CreateAPIController(c *gin.Context) {
@@ -38,7 +39,8 @@ func CreateAPIController(c *gin.Context) {
 		util.ServerError(c, 200, "API创建失败:"+err.Error())
 		return
 	}
-	domain.GatewayGlobal.FlushGateway()
+	// 只增量刷新当前 service 对应的缓存
+	domain.GatewayGlobal.PartialFlushGateway(apiPO.ServiceId)
 
 	util.Ok(c, "API创建成功", gin.H{
 		"api": *apiPO,
@@ -70,7 +72,8 @@ func UpdateAPIController(c *gin.Context) {
 		util.ServerError(c, 5, "API更新失败")
 		return
 	}
-	domain.GatewayGlobal.FlushGateway()
+	// 只增量刷新当前 service 对应的缓存
+	domain.GatewayGlobal.PartialFlushGateway(apiPO.ServiceId)
 
 	util.Ok(c, "API更新成功", gin.H{
 		"api": apiPO,
@@ -85,12 +88,13 @@ func DeleteAPIController(c *gin.Context) {
 		return
 	}
 	// 删除API
-	err := domain.DeleteAPIService(req.Id)
+	serviceID, err := domain.DeleteAPIService(req.Id)
 	if err != nil {
 		util.ServerError(c, 2, "API删除失败")
 		return
 	}
-	domain.GatewayGlobal.FlushGateway()
+	// 只增量刷新当前 service 对应的缓存
+	domain.GatewayGlobal.PartialFlushGateway(serviceID)
 
 	util.Ok(c, "API删除成功", nil)
 }

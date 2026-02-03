@@ -1,14 +1,15 @@
 package controller
 
 import (
-	"github.com/gin-gonic/gin"
-	"github.com/trancecho/mundo-gateway/controller/dto"
-	"github.com/trancecho/mundo-gateway/domain"
-	"github.com/trancecho/mundo-gateway/util"
 	"log"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/trancecho/mundo-gateway/controller/dto"
+	"github.com/trancecho/mundo-gateway/domain"
+	"github.com/trancecho/mundo-gateway/util"
 )
 
 //type ServiceDTO struct {
@@ -89,11 +90,11 @@ func CreateServiceController(c *gin.Context) {
 
 	servicePO, ok, err := domain.CreateServiceService(&req, c.ClientIP())
 	if !ok && err != nil {
-		domain.GatewayGlobal.FlushGateway()
 		util.ServerError(c, util.ResourceAlreadyExistsWarning, "服务创建失败:"+err.Error())
 		return
 	}
-	domain.GatewayGlobal.FlushGateway()
+	// 只增量刷新当前 service
+	domain.GatewayGlobal.PartialFlushGateway(servicePO.ID)
 	util.Ok(c, "服务创建成功", gin.H{
 		"service": servicePO,
 	})
@@ -116,7 +117,8 @@ func UpdateServiceController(c *gin.Context) {
 		util.ServerError(c, 800, "服务更新失败")
 		return
 	}
-	domain.GatewayGlobal.FlushGateway()
+	// 只增量刷新当前 service
+	domain.GatewayGlobal.PartialFlushGateway(servicePO.ID)
 
 	util.Ok(c, "服务更新成功", gin.H{
 		"service": servicePO,
@@ -149,7 +151,8 @@ func DeleteServiceController(c *gin.Context) {
 		util.ServerError(c, 2, "服务删除失败")
 		return
 	}
-	domain.GatewayGlobal.FlushGateway()
+	// 从缓存里移除这个 service
+	domain.GatewayGlobal.PartialFlushGateway(idInt64)
 
 	util.Ok(c, "服务删除和相关api删除成功", nil)
 }
@@ -167,12 +170,13 @@ func DeleteServiceAddressController(c *gin.Context) {
 		util.ServerError(c, 1, "id不能为空")
 		return
 	}
-	ok := domain.DeleteAddressService(idInt64)
+	serviceID, ok := domain.DeleteAddressService(idInt64)
 	if !ok {
 		util.ServerError(c, 2, "服务地址删除失败")
 		return
 	}
-	domain.GatewayGlobal.FlushGateway()
+	// 增量刷新该地址所属的 service
+	domain.GatewayGlobal.PartialFlushGateway(serviceID)
 
 	util.Ok(c, "服务地址删除成功", nil)
 }
