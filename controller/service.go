@@ -10,6 +10,7 @@ import (
 	"github.com/trancecho/mundo-gateway/controller/dto"
 	"github.com/trancecho/mundo-gateway/domain"
 	"github.com/trancecho/mundo-gateway/util"
+	"github.com/trancecho/ragnarok/maplist"
 )
 
 //type ServiceDTO struct {
@@ -93,16 +94,47 @@ func CreateServiceController(c *gin.Context) {
 		util.ServerError(c, util.ResourceAlreadyExistsWarning, "服务创建失败:"+err.Error())
 		return
 	}
-	// 只增量刷新当前 service
-	domain.GatewayGlobal.PartialFlushGateway(servicePO.ID)
+	//构造 Addresses
+	addresses := maplist.NewMapList[domain.Address]()
+	for _, addrPO := range servicePO.Addresses {
+		addresses.Add(addrPO.ID, &domain.Address{
+			Address:   addrPO.Address,
+			LastBeat:  time.Now(),
+			IsHealthy: true,
+		})
+	}
+
+	//构造 ServiceBO（完整初始化）
+	serviceBO := &domain.ServiceBO{
+		ServicePOId: servicePO.ID,
+		Prefix:      servicePO.Prefix,
+		Name:        servicePO.Name,
+		Protocol:    servicePO.Protocol,
+		Available:   servicePO.Available,
+		Addresses:   addresses,
+		APIs:        maplist.NewMapList[domain.APIBO](),
+	}
+
+	// 3️⃣ 放入 Gateway
+	domain.GatewayGlobal.Services.Add(servicePO.ID, serviceBO)
+
+	// 4️⃣ Prefix 同样一次性加
+
+	domain.GatewayGlobal.Prefixes.Add(serviceBO.Prefix, &domain.Prefix{
+		Name:      servicePO.Prefix,
+		ServiceId: servicePO.ID,
+	})
+
 	util.Ok(c, "服务创建成功", gin.H{
 		"service": servicePO,
 	})
+
 }
 
 func UpdateServiceController(c *gin.Context) {
 	var req dto.ServiceUpdateReq
 	c.ShouldBindJSON(&req)
+
 	if req.Id == 0 {
 		util.ServerError(c, 100, "id不能为空")
 		return
@@ -117,8 +149,25 @@ func UpdateServiceController(c *gin.Context) {
 		util.ServerError(c, 800, "服务更新失败")
 		return
 	}
-	// 只增量刷新当前 service
-	domain.GatewayGlobal.PartialFlushGateway(servicePO.ID)
+
+	// 1️⃣ 从 Gateway 取已有 ServiceBO
+	serviceBO, ok := domain.GatewayGlobal.Services.Get(servicePO.ID)
+	if !ok || serviceBO == nil {
+		util.ServerError(c, 900, "Gateway 中不存在该 Service")
+		return
+	}
+
+	// 2️⃣ 原地更新字段（不破坏运行态）
+	serviceBO.Name = servicePO.Name
+	serviceBO.Prefix = servicePO.Prefix
+	serviceBO.Protocol = servicePO.Protocol
+	serviceBO.Available = servicePO.Available
+
+	// 3️⃣ 更新 Prefix 映射（注意：不是 Add serviceID）
+	domain.GatewayGlobal.Prefixes.Add(serviceBO.Prefix, &domain.Prefix{
+		Name:      servicePO.Prefix,
+		ServiceId: servicePO.ID,
+	})
 
 	util.Ok(c, "服务更新成功", gin.H{
 		"service": servicePO,
@@ -126,57 +175,80 @@ func UpdateServiceController(c *gin.Context) {
 }
 
 func DeleteServiceController(c *gin.Context) {
-	var err error
-	var id int
-	id, err = strconv.Atoi(c.Query("id"))
-	if err != nil {
-		util.ServerError(c, 3, "id格式错误")
-		return
-	}
-	idInt64 := int64(id)
-	if id == 0 {
-		util.ServerError(c, 1, "id不能为空")
+	idStr := c.Query("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil || id == 0 {
+		util.ServerError(c, 1, "id格式错误或为空")
 		return
 	}
 
-	// 删除与该服务相关的所有API
-	err = domain.DeleteAPIsByServiceID(idInt64) // 调用删除API的函数
-	if err != nil {
-		util.ServerError(c, 2, "删除相关API失败")
+	// 1️⃣ 先从 Gateway 内存中取出 Service
+	serviceBO, ok := domain.GatewayGlobal.Services.Get(id)
+	if !ok || serviceBO == nil {
+		util.ServerError(c, 404, "服务不存在或已被删除")
 		return
 	}
 
-	ok := domain.DeleteServiceService(idInt64)
-	if !ok {
-		util.ServerError(c, 2, "服务删除失败")
-		return
-	}
-	// 从缓存里移除这个 service
-	domain.GatewayGlobal.PartialFlushGateway(idInt64)
+	// 2️⃣ 加写锁，防止并发转发
+	domain.GatewayGlobal.RWMutex.Lock()
+	defer domain.GatewayGlobal.RWMutex.Unlock()
 
-	util.Ok(c, "服务删除和相关api删除成功", nil)
+	// 3️⃣ 从内存下线（优先）
+	domain.GatewayGlobal.Services.Remove(id)
+
+	domain.GatewayGlobal.Prefixes.Remove(serviceBO.Prefix)
+
+	// 4️⃣ 显式清空运行态结构（语义更干净）
+	if serviceBO.Addresses.IsEmpty() == false {
+		serviceBO.Addresses.Clear()
+	}
+	if serviceBO.APIs.IsEmpty() == false {
+		serviceBO.APIs.Clear()
+	}
+
+	// 5️⃣ 再删 DB（即使 DB 失败，也不影响网关稳定性）
+	if err := domain.DeleteAPIsByServiceID(id); err != nil {
+		log.Println("删除API失败:", err)
+	}
+
+	if ok := domain.DeleteServiceService(id); !ok {
+		log.Println("删除Service失败:", id)
+	}
+
+	util.Ok(c, "服务及相关API删除成功", nil)
 }
 
 func DeleteServiceAddressController(c *gin.Context) {
-	var err error
-	var id int
-	id, err = strconv.Atoi(c.Query("id"))
-	if err != nil {
-		util.ServerError(c, 3, "id格式错误")
+	addressID, err := strconv.ParseInt(c.Query("id"), 10, 64)
+	if err != nil || addressID == 0 {
+		util.ServerError(c, 1, "address id格式错误")
 		return
 	}
-	idInt64 := int64(id)
-	if id == 0 {
-		util.ServerError(c, 1, "id不能为空")
-		return
-	}
-	serviceID, ok := domain.DeleteAddressService(idInt64)
+
+	// 1️⃣ 先删 DB，拿到 serviceID
+	serviceID, ok := domain.DeleteAddressService(addressID)
 	if !ok {
 		util.ServerError(c, 2, "服务地址删除失败")
 		return
 	}
-	// 增量刷新该地址所属的 service
-	domain.GatewayGlobal.PartialFlushGateway(serviceID)
+
+	// 2️⃣ 从 Gateway 内存中移除（加锁）
+	domain.GatewayGlobal.RWMutex.Lock()
+	defer domain.GatewayGlobal.RWMutex.Unlock()
+
+	serviceBO, ok := domain.GatewayGlobal.Services.Get(serviceID)
+	if !ok || serviceBO == nil {
+		util.ServerError(c, 404, "服务不存在")
+		return
+	}
+
+	if serviceBO.Addresses.IsEmpty() == true {
+		util.ServerError(c, 500, "服务地址未初始化")
+		return
+	}
+
+	// ✅ 正确：用 addressID 删除
+	serviceBO.Addresses.Remove(addressID)
 
 	util.Ok(c, "服务地址删除成功", nil)
 }
@@ -239,21 +311,46 @@ func ServiceAliveSignalController(c *gin.Context) {
 }
 
 func ServiceAliveChecker() {
-	// 定时检查服务的心跳
+	// 定时检查服务的心跳，避免在遍历时直接修改集合（先收集再注销）
 	ticker := time.NewTicker(30 * time.Second)
-	for {
-		select {
-		case <-ticker.C:
-			for _, serviceBO := range domain.GatewayGlobal.Services {
-				for _, address := range serviceBO.Addresses {
-					// 如果服务超过30秒没有心跳，则认为服务不可用
-					if time.Since(address.LastBeat) > 30*time.Second {
-						log.Println("服务不可用", serviceBO.Name, address.Address)
-						// 删除服务地址
-						domain.UnregisterServiceService(serviceBO.Name, address.Address)
+	defer ticker.Stop()
+	for range ticker.C {
+		threshold := 30 * time.Second
+		// 收集需要注销的地址，避免遍历时直接修改集合
+		var toUnregister []struct {
+			serviceName string
+			address     string
+		}
+
+		// 只读锁收集信息
+		domain.GatewayGlobal.RWMutex.RLock()
+		if domain.GatewayGlobal.Services.Size() != 0 {
+			for _, serviceBO := range domain.GatewayGlobal.Services.List {
+				if serviceBO == nil {
+					continue
+				}
+				// Addresses 可能为自定义集合，保留原有遍历方式并加空检查
+				for _, address := range serviceBO.Addresses.List {
+					if address == nil {
+						continue
+					}
+					// 如果 LastBeat 为空或超过阈值，认为不可用
+					if address.LastBeat.IsZero() || time.Since(address.LastBeat) > threshold {
+						toUnregister = append(toUnregister, struct {
+							serviceName string
+							address     string
+						}{serviceBO.Name, address.Address})
 					}
 				}
 			}
+		}
+		domain.GatewayGlobal.RWMutex.RUnlock()
+
+		// 在读锁之外执行注销操作，避免并发修改导致的竞态/panic
+		for _, u := range toUnregister {
+			log.Println("服务不可用，开始注销：", u.serviceName, u.address)
+			// 保持与原逻辑一致，不关心返回值
+			domain.UnregisterServiceService(u.serviceName, u.address)
 		}
 	}
 }
@@ -277,23 +374,25 @@ type HealthStatusHandlerReq struct {
 func HealthStatusHandler(c *gin.Context) {
 	var req HealthStatusHandlerReq
 	c.ShouldBindQuery(&req)
-	if req.ServiceName == "" {
-		util.ClientError(c, util.QueryParamError, "service_name不能为空")
-		return
-	}
-
+	// 允许不传 service_name：返回所有服务的健康状态；如果传了则同时返回 target
 	var statuses []ServiceStatus
-	domain.GatewayGlobal.RWMutex.RLock()
-	defer domain.GatewayGlobal.RWMutex.RUnlock()
 
-	if domain.GatewayGlobal.Services == nil {
+	// 读锁保护遍历
+	domain.GatewayGlobal.RWMutex.RLock()
+	if domain.GatewayGlobal.Services.Size() == 0 {
+		domain.GatewayGlobal.RWMutex.RUnlock()
 		util.ServerError(c, util.DefaultError, "服务列表为空")
 		return
 	}
-
-	for _, service := range domain.GatewayGlobal.Services {
+	for _, service := range domain.GatewayGlobal.Services.List {
+		if service == nil {
+			continue
+		}
 		var addrStatuses []AddressStatus
-		for _, addr := range service.Addresses {
+		for _, addr := range service.Addresses.List {
+			if addr == nil {
+				continue
+			}
 			addrStatuses = append(addrStatuses, AddressStatus{
 				Address:   addr.Address,
 				IsHealthy: addr.IsHealthy,
@@ -306,15 +405,23 @@ func HealthStatusHandler(c *gin.Context) {
 			Addresses: addrStatuses,
 		})
 	}
-	servicebo := domain.GetServiceBO(req.ServiceName)
-	if servicebo == nil {
-		util.ClientError(c, util.QueryParamError, "服务不存在")
-		return
+	domain.GatewayGlobal.RWMutex.RUnlock()
+
+	// 如果传了 service_name，则尝试获取该服务的下一个目标地址，否则 target 为 nil
+	var target interface{}
+	if req.ServiceName != "" {
+		servicebo := domain.GetServiceBO(req.ServiceName)
+		if servicebo == nil {
+			util.ClientError(c, util.QueryParamError, "服务不存在")
+			return
+		}
+		target = servicebo.GetNextAddress()
+	} else {
+		target = nil
 	}
-	nextAddress := servicebo.GetNextAddress()
 
 	util.Ok(c, "服务健康状态", gin.H{
 		"services": statuses,
-		"target":   nextAddress,
+		"target":   target,
 	})
 }

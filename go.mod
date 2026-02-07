@@ -2,6 +2,8 @@ module github.com/trancecho/mundo-gateway
 
 go 1.24.2
 
+replace github.com/trancecho/ragnarok => ./ragnarok
+
 require (
 	github.com/gin-gonic/gin v1.11.0
 	github.com/golang/protobuf v1.5.4

@@ -60,16 +60,16 @@ func CreateAPIService(req *dto.APICreateReq) (*po.API, error) {
 	if servicePO.Protocol == "http" {
 		// api不存在
 		db.Create(&apiPO)
-		for _, service := range GatewayGlobal.Services {
+		for _, service := range GatewayGlobal.Services.List {
 			if service.ServicePOId == servicePO.ID {
-				service.APIs = append(service.APIs, APIBO{
+				service.APIs.Add(servicePO.ID, &APIBO{
 					Id:         apiPO.ID,
 					HttpPath:   apiPO.HttpPath,
 					HttpMethod: apiPO.HttpMethod,
 					GrpcMethodMeta: GrpcMethodMetaBO{
 						ApiId:       apiPO.ID,
-						ServiceName: "",
-						MethodName:  "",
+						ServiceName: req.ServiceName,
+						MethodName:  req.Method,
 					},
 				})
 			}
@@ -89,9 +89,19 @@ func CreateAPIService(req *dto.APICreateReq) (*po.API, error) {
 		if err != nil {
 			return nil, err
 		}
-		for _, service := range GatewayGlobal.Services {
+		for _, service := range GatewayGlobal.Services.List {
 			if service.ServicePOId == servicePO.ID {
-				service.APIs = append(service.APIs, APIBO{
+				//service.APIs = append(service.APIs, APIBO{
+				//	Id:         apiPO.ID,
+				//	HttpPath:   apiPO.HttpPath,
+				//	HttpMethod: apiPO.HttpMethod,
+				//	GrpcMethodMeta: GrpcMethodMetaBO{
+				//		ApiId:       apiPO.ID,
+				//		ServiceName: req.GrpcService,
+				//		MethodName:  req.GrpcMethod,
+				//	},
+				//})
+				service.APIs.Add(servicePO.ID, &APIBO{
 					Id:         apiPO.ID,
 					HttpPath:   apiPO.HttpPath,
 					HttpMethod: apiPO.HttpMethod,
@@ -148,9 +158,9 @@ func UpdateAPIService(dto *dto.APIUpdateReq) (*po.API, error) {
 
 	err = db.Save(&apiPO).Error
 
-	for _, service := range GatewayGlobal.Services {
+	for _, service := range GatewayGlobal.Services.List {
 		if service.ServicePOId == apiPO.ServiceId {
-			for _, api := range service.APIs {
+			for _, api := range service.APIs.List {
 				if api.Id == apiPO.ID {
 					api.HttpPath = apiPO.HttpPath
 					api.HttpMethod = apiPO.HttpMethod
@@ -169,27 +179,27 @@ func UpdateAPIService(dto *dto.APIUpdateReq) (*po.API, error) {
 }
 
 // DeleteAPIService 删除API，返回其所属的 serviceId，便于做增量刷新
-func DeleteAPIService(id int64) (int64, error) {
+func DeleteAPIService(id int64) (*po.API, error) {
 	var apiPO po.API
 	db := GatewayGlobal.DB
 	affected := db.First(&apiPO, id).RowsAffected
 	if affected == 0 {
-		return 0, errors.New("API不存在")
+		return nil, errors.New("API不存在")
 	}
 	err := db.Delete(&apiPO).Error
-	for _, service := range GatewayGlobal.Services {
+	for _, service := range GatewayGlobal.Services.List {
 		if service.ServicePOId == apiPO.ServiceId {
-			for i, api := range service.APIs {
+			for i, api := range service.APIs.List {
 				if api.Id == apiPO.ID {
-					service.APIs = append(service.APIs[:i], service.APIs[i+1:]...)
+					service.APIs.Remove(int64(i))
 				}
 			}
 		}
 	}
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
-	return apiPO.ServiceId, nil
+	return &apiPO, nil
 }
 
 // ListAPIService 获取API列表
