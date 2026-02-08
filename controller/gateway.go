@@ -120,6 +120,7 @@ func HandleRequestController(c *gin.Context) {
 
 func InitGateway() {
 	domain.GatewayGlobal = domain.NewGateway()
+	domain.GatewayGlobal.FlushGateway()
 	log.Println("初始化网关", domain.GatewayGlobal)
 }
 

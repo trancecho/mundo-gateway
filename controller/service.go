@@ -90,10 +90,12 @@ func CreateServiceController(c *gin.Context) {
 	}
 
 	servicePO, ok, err := domain.CreateServiceService(&req, c.ClientIP())
-	if !ok && err != nil {
+	if err != nil {
 		util.ServerError(c, util.ResourceAlreadyExistsWarning, "服务创建失败:"+err.Error())
 		return
 	}
+	b, ok := domain.GatewayGlobal.Services.Get(servicePO.ID)
+
 	//构造 Addresses
 	addresses := maplist.NewMapList[domain.Address]()
 	for _, addrPO := range servicePO.Addresses {
@@ -103,27 +105,27 @@ func CreateServiceController(c *gin.Context) {
 			IsHealthy: true,
 		})
 	}
+	if !ok {
+		serviceBO := &domain.ServiceBO{
+			ServicePOId: servicePO.ID,
+			Prefix:      servicePO.Prefix,
+			Name:        servicePO.Name,
+			Protocol:    servicePO.Protocol,
+			Available:   servicePO.Available,
+			Addresses:   addresses,
+			APIs:        maplist.NewMapList[domain.APIBO](),
+		}
 
-	//构造 ServiceBO（完整初始化）
-	serviceBO := &domain.ServiceBO{
-		ServicePOId: servicePO.ID,
-		Prefix:      servicePO.Prefix,
-		Name:        servicePO.Name,
-		Protocol:    servicePO.Protocol,
-		Available:   servicePO.Available,
-		Addresses:   addresses,
-		APIs:        maplist.NewMapList[domain.APIBO](),
+		// 3️⃣ 放入 Gateway
+		domain.GatewayGlobal.Services.Add(servicePO.ID, serviceBO)
+		// 4️⃣ Prefix 同样一次性加
+		domain.GatewayGlobal.Prefixes.Add(serviceBO.Prefix, &domain.Prefix{
+			Name:      servicePO.Prefix,
+			ServiceId: servicePO.ID,
+		})
+	} else {
+		b.Addresses = addresses
 	}
-
-	// 3️⃣ 放入 Gateway
-	domain.GatewayGlobal.Services.Add(servicePO.ID, serviceBO)
-
-	// 4️⃣ Prefix 同样一次性加
-
-	domain.GatewayGlobal.Prefixes.Add(serviceBO.Prefix, &domain.Prefix{
-		Name:      servicePO.Prefix,
-		ServiceId: servicePO.ID,
-	})
 
 	util.Ok(c, "服务创建成功", gin.H{
 		"service": servicePO,
