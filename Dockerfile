@@ -23,6 +23,7 @@ RUN git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "htt
 
 RUN go mod tidy
 
+COPY go.mod go.sum ./
 # 下载 Go 项目的依赖
 RUN go mod download
 
