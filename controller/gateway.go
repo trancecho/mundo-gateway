@@ -2,11 +2,12 @@ package controller
 
 import (
 	"fmt"
+	"log"
+	"strings"
+
 	"github.com/gin-gonic/gin"
 	"github.com/trancecho/mundo-gateway/domain"
 	"github.com/trancecho/mundo-gateway/util"
-	"log"
-	"strings"
 )
 
 //// 创建反向代理
@@ -39,7 +40,7 @@ func HandleRequestController(c *gin.Context) {
 	var prefixOkFlag bool
 	// 用Prefix列表匹配找到对应的服务
 	// todo 可以进行o1优化，用map存储
-	for _, curPrefix := range domain.GatewayGlobal.Prefixes {
+	for _, curPrefix := range domain.GatewayGlobal.Prefixes.List {
 		log.Println("curPrefix", curPrefix)
 		log.Println("prefix", prefix)
 		if curPrefix.Name == prefix {
@@ -64,9 +65,9 @@ func HandleRequestController(c *gin.Context) {
 	//}
 	//log.Println("servicePO", servicePO)
 
-	var serviceBO domain.ServiceBO
+	var serviceBO *domain.ServiceBO
 	log.Println("services", domain.GatewayGlobal.Services)
-	for _, bo := range domain.GatewayGlobal.Services {
+	for _, bo := range domain.GatewayGlobal.Services.List {
 		// 一个prefix只存在一个服务
 		if bo.Prefix == prefix {
 			serviceBO = bo
@@ -77,7 +78,7 @@ func HandleRequestController(c *gin.Context) {
 	// 寻找服务方法和路由都匹配的API，如果没有就拦截(默认grpc服务也有http路由，apibo是http2grpc的映射)
 	//
 	//但是对于"/:xx/"的路由，需要进行特殊处理
-	for _, api := range serviceBO.APIs {
+	for _, api := range serviceBO.APIs.List {
 		log.Println("api", api, "method", method, "path", path)
 
 		// 先判断方法
@@ -87,13 +88,13 @@ func HandleRequestController(c *gin.Context) {
 
 		// 精确匹配优先
 		if api.HttpPath == path {
-			apiBO = &api
+			apiBO = api
 			break
 		}
 
 		// 尝试模糊匹配 /user/:id -> /user/123
 		if isPathMatch(api.HttpPath, path) {
-			apiBO = &api
+			apiBO = api
 			break
 		}
 	}
@@ -119,7 +120,8 @@ func HandleRequestController(c *gin.Context) {
 
 func InitGateway() {
 	domain.GatewayGlobal = domain.NewGateway()
-	//log.Println("初始化网关", domain.GatewayGlobal)
+	domain.GatewayGlobal.FlushGateway()
+	log.Println("初始化网关", domain.GatewayGlobal)
 }
 
 func FlushAPIController(c *gin.Context) {

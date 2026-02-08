@@ -1,12 +1,15 @@
 package controller
 
 import (
+	"log"
+	"strconv"
+
 	"github.com/gin-gonic/gin"
 	"github.com/trancecho/mundo-gateway/controller/dto"
 	"github.com/trancecho/mundo-gateway/domain"
+	"github.com/trancecho/ragnarok/maplist"
+
 	"github.com/trancecho/mundo-gateway/util"
-	"log"
-	"strconv"
 )
 
 func CreateAPIController(c *gin.Context) {
@@ -38,7 +41,28 @@ func CreateAPIController(c *gin.Context) {
 		util.ServerError(c, 200, "API创建失败:"+err.Error())
 		return
 	}
-	domain.GatewayGlobal.FlushGateway()
+
+	domain.GatewayGlobal.RWMutex.Lock()
+	defer domain.GatewayGlobal.RWMutex.Unlock()
+
+	serviceBO, ok := domain.GatewayGlobal.Services.Get(apiPO.ServiceId)
+	if !ok || serviceBO == nil {
+		log.Println("API创建成功，但服务未加载到网关缓存，serviceID:", apiPO.ServiceId)
+	} else {
+		if serviceBO.APIs.IsEmpty() == true {
+			serviceBO.APIs = maplist.NewMapList[domain.APIBO]()
+		}
+		serviceBO.APIs.Add(apiPO.ID, &domain.APIBO{
+			Id:         apiPO.ID,
+			HttpPath:   apiPO.HttpPath,
+			HttpMethod: apiPO.HttpMethod,
+			GrpcMethodMeta: domain.GrpcMethodMetaBO{
+				ApiId:       apiPO.ID,
+				ServiceName: req.ServiceName,
+				MethodName:  req.Method,
+			},
+		})
+	}
 
 	util.Ok(c, "API创建成功", gin.H{
 		"api": *apiPO,
@@ -70,8 +94,31 @@ func UpdateAPIController(c *gin.Context) {
 		util.ServerError(c, 5, "API更新失败")
 		return
 	}
-	domain.GatewayGlobal.FlushGateway()
 
+	domain.GatewayGlobal.RWMutex.Lock()
+	defer domain.GatewayGlobal.RWMutex.Unlock()
+
+	serviceBO, ok := domain.GatewayGlobal.Services.Get(apiPO.ServiceId)
+	if !ok || serviceBO == nil {
+		util.ServerError(c, 404, "服务未加载到网关")
+		return
+	}
+
+	if serviceBO.APIs.IsEmpty() == true {
+		serviceBO.APIs = maplist.NewMapList[domain.APIBO]()
+	}
+
+	serviceBO.APIs.Add(apiPO.ID, &domain.APIBO{
+		Id:         apiPO.ID,
+		HttpPath:   apiPO.HttpPath,
+		HttpMethod: apiPO.HttpMethod,
+		GrpcMethodMeta: domain.GrpcMethodMetaBO{
+			ApiId:       apiPO.ID,
+			ServiceName: req.Name,
+			MethodName:  req.Method,
+		},
+	})
+	log.Println("服务是否加载到网关", serviceBO.APIs)
 	util.Ok(c, "API更新成功", gin.H{
 		"api": apiPO,
 	})
@@ -85,12 +132,23 @@ func DeleteAPIController(c *gin.Context) {
 		return
 	}
 	// 删除API
-	err := domain.DeleteAPIService(req.Id)
+	apiPO, err := domain.DeleteAPIService(req.Id)
 	if err != nil {
 		util.ServerError(c, 2, "API删除失败")
 		return
 	}
-	domain.GatewayGlobal.FlushGateway()
+	domain.GatewayGlobal.RWMutex.Lock()
+	defer domain.GatewayGlobal.RWMutex.Unlock()
+
+	serviceBO, ok := domain.GatewayGlobal.Services.Get(apiPO.ServiceId)
+	if !ok || serviceBO == nil {
+		util.ServerError(c, 404, "服务未加载到网关")
+		return
+	}
+
+	if serviceBO.APIs.IsEmpty() == false {
+		serviceBO.APIs.Remove(apiPO.ID)
+	}
 
 	util.Ok(c, "API删除成功", nil)
 }

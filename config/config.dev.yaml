@@ -1,0 +1,13 @@
+mysql:
+  host: dbconn.sealosbja.site
+  pwd: r6bqhtxg
+  port: 36476
+  db: md_gateway_test
+server:
+  port: 12388
+redis:
+  addr: dbconn.sealosbja.site:35523
+  password: "q9kvvwr9"
+  db: 1
+limit:
+  qpm: 20000

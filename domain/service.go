@@ -2,11 +2,14 @@ package domain
 
 import (
 	"errors"
+	"log"
+	"time"
+
+	"github.com/trancecho/ragnarok/maplist"
+
 	"github.com/trancecho/mundo-gateway/controller/dto"
 	"github.com/trancecho/mundo-gateway/po"
 	"gorm.io/gorm"
-	"log"
-	"time"
 )
 
 // ServiceBO BO 业务对象
@@ -14,8 +17,8 @@ type ServiceBO struct {
 	ServicePOId int64
 	Prefix      string
 	Name        string
-	Addresses   []*Address
-	APIs        []APIBO
+	Addresses   maplist.MapList[Address]
+	APIs        maplist.MapList[APIBO]
 	Protocol    string
 	curAddress  int64
 	Available   bool
@@ -28,26 +31,48 @@ func NewService(servicePOId int64) *ServiceBO {
 
 // GetNextAddress 使用轮询算法获取下一个后端服务地址
 func (s *ServiceBO) GetNextAddress() string {
-	// 不使用取模，可读性更强
-	if s.curAddress >= int64(len(s.Addresses)) {
+	addrs := s.Addresses.Values()
+	size := len(addrs)
+
+	if size == 0 {
+		return ""
+	}
+	if s.curAddress >= int64(size) {
 		s.curAddress = 0
 	}
-	address := s.Addresses[s.curAddress]
+	addr := addrs[s.curAddress]
 	s.curAddress++
-	return address.Address
+
+	return addr.Address
 }
 
 func GetServiceBO(name string) *ServiceBO {
-	for _, service := range GatewayGlobal.Services {
+	//for _, service := range GatewayGlobal.Services {
+	//	if service.Name == name {
+	//		// 这里直接返回 map 中元素的副本地址，保持原语义
+	//		svc := service
+	//		return &svc
+	//	}
+	//}
+	//return nil
+	for _, service := range GatewayGlobal.Services.List {
 		if service.Name == name {
-			return &service
+			// 这里直接返回 map 中元素的副本地址，保持原语义
+			svc := service
+			return svc
 		}
 	}
 	return nil
 }
 
 func (s *ServiceBO) GetAddressBO(address string) *Address {
-	for _, addr := range s.Addresses {
+	//for _, addr := range s.Addresses {
+	//	if addr.Address == address {
+	//		return addr
+	//	}
+	//}
+	//return nil
+	for _, addr := range s.Addresses.List {
 		if addr.Address == address {
 			return addr
 		}
@@ -124,7 +149,7 @@ func UnregisterServiceService(name string, address string) bool {
 		return false
 	}
 
-	// 更新内存中的数据
+	// 更新内存中的数据（只增量刷新当前 service）
 	GatewayGlobal.FlushGateway()
 
 	// 日志记录
@@ -242,24 +267,31 @@ func UpdateServiceService(dto *dto.ServiceUpdateReq) (*po.Service, bool) {
 	return &servicePO, true
 }
 
-func DeleteAddressService(id int64) bool {
-	var err error
-	var addressPO po.Address
-	addressPO.ID = id
-	// 根据id查找address
-	affected := GatewayGlobal.DB.Where("id=?", addressPO.ID).
-		Find(&addressPO).RowsAffected
-	if affected == 0 {
-		log.Println("地址不存在")
-		return false
-	}
-	// 删除address
-	err = GatewayGlobal.DB.Delete(&addressPO).Error
+// DeleteAddressService 删除地址，返回其所属的 serviceId
+func DeleteAddressService(id int64) (int64, bool) {
+	var address po.Address
+
+	// 查单条：用 First
+	err := GatewayGlobal.DB.
+		Where("id = ?", id).
+		First(&address).Error
+
 	if err != nil {
-		log.Println("地址删除失败", err)
-		return false
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			log.Println("地址不存在, id:", id)
+		} else {
+			log.Println("查询地址失败:", err)
+		}
+		return 0, false
 	}
-	return true
+
+	// 删除（软删除）
+	if err := GatewayGlobal.DB.Delete(&address).Error; err != nil {
+		log.Println("地址删除失败:", err)
+		return 0, false
+	}
+
+	return address.ServiceId, true
 }
 
 // 删除服务
