@@ -11,6 +11,12 @@ COPY go.mod go.sum ./
 # 安装 Git
 RUN apk update && apk add --no-cache git
 
+ARG GITHUB_TOKEN
+
+# 告诉 Go 哪些是私有仓库
+ENV GOPRIVATE=github.com/trancecho \
+    GONOSUMDB=github.com/trancecho
+
 # 设置 GitHub 访问令牌用于认证
 ARG GITHUB_TOKEN
 RUN git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
