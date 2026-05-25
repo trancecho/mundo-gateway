@@ -1,14 +1,11 @@
 package controller
 
 import (
-	"log"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/trancecho/mundo-gateway/controller/dto"
 	"github.com/trancecho/mundo-gateway/domain"
-	"github.com/trancecho/ragnarok/maplist"
-
 	"github.com/trancecho/mundo-gateway/util"
 )
 
@@ -28,40 +25,38 @@ func CreateAPIController(c *gin.Context) {
 		return
 	}
 
-	// 检查是否已存在相同的路径和方法,这里开始写bug
 	existingAPI, err := domain.GetAPIByPathAndMethod(req.Path, req.Method, req.ServiceName)
 	if err == nil && existingAPI != nil {
-		log.Println("API路径和方法已存在", req.Path, req.Method)
+		domain.UpsertAPIBOToCache(existingAPI, req.ServiceName)
+		c.JSON(200, gin.H{
+			"err_code": 410100,
+			"message":  "API已存在",
+			"data":     gin.H{"api": *existingAPI},
+		})
 		return
 	}
 
-	// 创建API
 	apiPO, err := domain.CreateAPIService(&req)
 	if err != nil {
+		if err.Error() == "API已存在" {
+			existingAPI, _ = domain.GetAPIByPathAndMethod(req.Path, req.Method, req.ServiceName)
+			if existingAPI != nil {
+				domain.UpsertAPIBOToCache(existingAPI, req.ServiceName)
+				c.JSON(200, gin.H{
+					"err_code": 410100,
+					"message":  "API已存在",
+					"data":     gin.H{"api": *existingAPI},
+				})
+				return
+			}
+		}
 		util.ServerError(c, 200, "API创建失败:"+err.Error())
 		return
 	}
 
-	domain.GatewayGlobal.RWMutex.Lock()
-	defer domain.GatewayGlobal.RWMutex.Unlock()
-
-	serviceBO, ok := domain.GatewayGlobal.Services.Get(apiPO.ServiceId)
-	if !ok || serviceBO == nil {
-		log.Println("API创建成功，但服务未加载到网关缓存，serviceID:", apiPO.ServiceId)
-	} else {
-		if serviceBO.APIs.IsEmpty() == true {
-			serviceBO.APIs = maplist.NewMapList[domain.APIBO]()
-		}
-		serviceBO.APIs.Add(apiPO.ID, &domain.APIBO{
-			Id:         apiPO.ID,
-			HttpPath:   apiPO.HttpPath,
-			HttpMethod: apiPO.HttpMethod,
-			GrpcMethodMeta: domain.GrpcMethodMetaBO{
-				ApiId:       apiPO.ID,
-				ServiceName: req.ServiceName,
-				MethodName:  req.Method,
-			},
-		})
+	domain.UpsertAPIBOToCache(apiPO, req.ServiceName)
+	if domain.GetServiceBO(req.ServiceName) == nil {
+		domain.ReloadServiceIntoGateway(apiPO.ServiceId)
 	}
 
 	util.Ok(c, "API创建成功", gin.H{
@@ -88,37 +83,13 @@ func UpdateAPIController(c *gin.Context) {
 		util.ClientError(c, 4, "method不能为空")
 		return
 	}
-	// 更新API
 	apiPO, err := domain.UpdateAPIService(&req)
 	if err != nil {
 		util.ServerError(c, 5, "API更新失败")
 		return
 	}
 
-	domain.GatewayGlobal.RWMutex.Lock()
-	defer domain.GatewayGlobal.RWMutex.Unlock()
-
-	serviceBO, ok := domain.GatewayGlobal.Services.Get(apiPO.ServiceId)
-	if !ok || serviceBO == nil {
-		util.ServerError(c, 404, "服务未加载到网关")
-		return
-	}
-
-	if serviceBO.APIs.IsEmpty() == true {
-		serviceBO.APIs = maplist.NewMapList[domain.APIBO]()
-	}
-
-	serviceBO.APIs.Add(apiPO.ID, &domain.APIBO{
-		Id:         apiPO.ID,
-		HttpPath:   apiPO.HttpPath,
-		HttpMethod: apiPO.HttpMethod,
-		GrpcMethodMeta: domain.GrpcMethodMetaBO{
-			ApiId:       apiPO.ID,
-			ServiceName: req.Name,
-			MethodName:  req.Method,
-		},
-	})
-	log.Println("服务是否加载到网关", serviceBO.APIs)
+	domain.UpsertAPIBOToCache(apiPO, req.Name)
 	util.Ok(c, "API更新成功", gin.H{
 		"api": apiPO,
 	})
@@ -131,51 +102,32 @@ func DeleteAPIController(c *gin.Context) {
 		util.ClientError(c, 1, "id不能为空")
 		return
 	}
-	// 删除API
 	apiPO, err := domain.DeleteAPIService(req.Id)
 	if err != nil {
 		util.ServerError(c, 2, "API删除失败")
 		return
 	}
-	domain.GatewayGlobal.RWMutex.Lock()
-	defer domain.GatewayGlobal.RWMutex.Unlock()
-
-	serviceBO, ok := domain.GatewayGlobal.Services.Get(apiPO.ServiceId)
-	if !ok || serviceBO == nil {
-		util.ServerError(c, 404, "服务未加载到网关")
-		return
-	}
-
-	if serviceBO.APIs.IsEmpty() == false {
-		serviceBO.APIs.Remove(apiPO.ID)
-	}
-
 	util.Ok(c, "API删除成功", nil)
+	_ = apiPO
 }
 
 func GetAPIController(c *gin.Context) {
-	var err error
-	var id int
-	id, err = strconv.Atoi(c.Query("id"))
+	id, err := strconv.Atoi(c.Query("id"))
 	if err != nil {
 		util.ServerError(c, 3, "api的id格式错误")
 		return
 	}
-	// 获取API
 	apiPO, err := domain.GetAPIService(int64(id))
 	if err != nil {
 		util.ServerError(c, 4, "API获取失败")
 		return
 	}
-
 	util.Ok(c, "API获取成功", gin.H{
 		"api": apiPO,
 	})
 }
 
 func ListAPIController(c *gin.Context) {
-	// 获取API列表
-	// 添加一个列出指定服务的API列表
 	serviceName := c.Query("serviceName")
 	if serviceName == "" {
 		serviceName = "all"

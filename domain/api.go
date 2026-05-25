@@ -58,21 +58,8 @@ func CreateAPIService(req *dto.APICreateReq) (*po.API, error) {
 		return nil, errors.New("API已存在")
 	}
 	if servicePO.Protocol == "http" {
-		// api不存在
-		db.Create(&apiPO)
-		for _, service := range GatewayGlobal.Services.List {
-			if service.ServicePOId == servicePO.ID {
-				service.APIs.Add(servicePO.ID, &APIBO{
-					Id:         apiPO.ID,
-					HttpPath:   apiPO.HttpPath,
-					HttpMethod: apiPO.HttpMethod,
-					GrpcMethodMeta: GrpcMethodMetaBO{
-						ApiId:       apiPO.ID,
-						ServiceName: req.ServiceName,
-						MethodName:  req.Method,
-					},
-				})
-			}
+		if err = db.Create(&apiPO).Error; err != nil {
+			return nil, err
 		}
 		return &apiPO, nil
 	} else if servicePO.Protocol == "grpc" {
@@ -88,30 +75,6 @@ func CreateAPIService(req *dto.APICreateReq) (*po.API, error) {
 		err = db.Create(&apiPO).Error
 		if err != nil {
 			return nil, err
-		}
-		for _, service := range GatewayGlobal.Services.List {
-			if service.ServicePOId == servicePO.ID {
-				//service.APIs = append(service.APIs, APIBO{
-				//	Id:         apiPO.ID,
-				//	HttpPath:   apiPO.HttpPath,
-				//	HttpMethod: apiPO.HttpMethod,
-				//	GrpcMethodMeta: GrpcMethodMetaBO{
-				//		ApiId:       apiPO.ID,
-				//		ServiceName: req.GrpcService,
-				//		MethodName:  req.GrpcMethod,
-				//	},
-				//})
-				service.APIs.Add(servicePO.ID, &APIBO{
-					Id:         apiPO.ID,
-					HttpPath:   apiPO.HttpPath,
-					HttpMethod: apiPO.HttpMethod,
-					GrpcMethodMeta: GrpcMethodMetaBO{
-						ApiId:       apiPO.ID,
-						ServiceName: req.GrpcService,
-						MethodName:  req.GrpcMethod,
-					},
-				})
-			}
 		}
 		return &apiPO, nil
 	}
@@ -157,20 +120,6 @@ func UpdateAPIService(dto *dto.APIUpdateReq) (*po.API, error) {
 	apiPO.GrpcMethodMeta.MethodName = dto.GrpcMethodMeta.MethodName
 
 	err = db.Save(&apiPO).Error
-
-	for _, service := range GatewayGlobal.Services.List {
-		if service.ServicePOId == apiPO.ServiceId {
-			for _, api := range service.APIs.List {
-				if api.Id == apiPO.ID {
-					api.HttpPath = apiPO.HttpPath
-					api.HttpMethod = apiPO.HttpMethod
-					api.GrpcMethodMeta.ServiceName = dto.GrpcMethodMeta.ServiceName
-					api.GrpcMethodMeta.MethodName = dto.GrpcMethodMeta.MethodName
-				}
-			}
-		}
-	}
-
 	if err != nil {
 		return nil, err
 	}
@@ -187,19 +136,25 @@ func DeleteAPIService(id int64) (*po.API, error) {
 		return nil, errors.New("API不存在")
 	}
 	err := db.Delete(&apiPO).Error
-	for _, service := range GatewayGlobal.Services.List {
-		if service.ServicePOId == apiPO.ServiceId {
-			for i, api := range service.APIs.List {
-				if api.Id == apiPO.ID {
-					service.APIs.Remove(int64(i))
-				}
-			}
-		}
-	}
 	if err != nil {
 		return nil, err
 	}
+	removeAPIFromMemory(apiPO.ServiceId, apiPO.ID)
 	return &apiPO, nil
+}
+
+func removeAPIFromMemory(serviceID, apiID int64) {
+	if GatewayGlobal == nil {
+		return
+	}
+	GatewayGlobal.RWMutex.Lock()
+	defer GatewayGlobal.RWMutex.Unlock()
+	for _, service := range GatewayGlobal.Services.List {
+		if service != nil && service.ServicePOId == serviceID {
+			service.APIs.Remove(apiID)
+			return
+		}
+	}
 }
 
 // ListAPIService 获取API列表
