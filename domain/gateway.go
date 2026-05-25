@@ -76,42 +76,9 @@ func NewGateway() *Gateway {
 		})
 	}
 
-	// 初始化全局 services 列表
 	serviceBOs := maplist.NewMapList[ServiceBO]()
 	for _, service := range services {
-		addresses := maplist.NewMapList[Address]()
-		for _, addr := range service.Addresses {
-			addresses.Add(addr.ID, &Address{
-				Address:   addr.Address,
-				LastBeat:  time.Now(),
-				IsHealthy: true,
-			})
-		}
-		apis := maplist.NewMapList[APIBO]()
-		for _, api := range service.APIs {
-			apis.Add(api.ID, &APIBO{
-				Id:         api.ID,
-				HttpPath:   api.HttpPath,
-				HttpMethod: api.HttpMethod,
-				GrpcMethodMeta: GrpcMethodMetaBO{
-					ApiId:       api.ID,
-					ServiceName: api.GrpcMethodMeta.ServiceName,
-					MethodName:  api.GrpcMethodMeta.MethodName,
-				},
-			})
-		}
-
-		serviceBOs.Add(service.ID, &ServiceBO{
-			ServicePOId: service.ID,
-			Prefix:      service.Prefix,
-			Name:        service.Name,
-			Protocol:    service.Protocol,
-			Addresses:   addresses,
-			APIs:        apis,
-			curAddress:  0,
-			Available:   service.Available,
-		})
-
+		serviceBOs.Add(service.ID, buildServiceBO(service, nil))
 	}
 
 	// 初始化 HTTP 客户端
@@ -134,72 +101,80 @@ func NewGateway() *Gateway {
 	return gateway
 }
 
-// FlushGateway 重新获取service列表
+// buildServiceBO 从 PO 构建运行态 ServiceBO，可保留既有心跳时间。
+func buildServiceBO(service po.Service, oldBeats map[string]time.Time) *ServiceBO {
+	addresses := maplist.NewMapList[Address]()
+	for _, addr := range service.Addresses {
+		addresses.Add(addr.ID, &Address{
+			Address:   addr.Address,
+			LastBeat:  lastBeatFor(oldBeats, addr.Address),
+			IsHealthy: true,
+		})
+	}
+	apis := maplist.NewMapList[APIBO]()
+	for _, api := range service.APIs {
+		a := api
+		apis.Add(a.ID, APIBOFromPO(a, service.Name))
+	}
+	return &ServiceBO{
+		ServicePOId: service.ID,
+		Prefix:      service.Prefix,
+		Name:        service.Name,
+		Protocol:    service.Protocol,
+		Addresses:   addresses,
+		APIs:        apis,
+		curAddress:  0,
+		Available:   service.Available,
+	}
+}
+
+// FlushGateway 从 DB 全量刷新服务与 API 缓存（保留地址心跳时间）。
 func (g *Gateway) FlushGateway() {
 	var servicesPO []po.Service
-	g.DB.Preload("Addresses").Preload("APIs").
+	g.DB.Preload("Addresses").
+		Preload("APIs.GrpcMethodMeta").
 		Where("available=?", true).
 		Find(&servicesPO)
 
+	beats := snapshotAddressBeats()
 	newServices := maplist.NewMapList[ServiceBO]()
 	newPrefixes := maplist.NewMapStringList[Prefix]()
 
 	for _, service := range servicesPO {
-		addresses := maplist.NewMapList[Address]()
-		for _, addr := range service.Addresses {
-			addresses.Add(addr.ID, &Address{
-				Address:   addr.Address,
-				LastBeat:  time.Now(),
-				IsHealthy: true,
-			})
-		}
-		log.Println("刷新服务地址列表", addresses)
-
-		apis := maplist.NewMapList[APIBO]()
-		for _, api := range service.APIs {
-			apis.Add(api.ID, &APIBO{
-				Id:         api.ID,
-				HttpPath:   api.HttpPath,
-				HttpMethod: api.HttpMethod,
-				GrpcMethodMeta: GrpcMethodMetaBO{
-					ApiId:       api.ID,
-					ServiceName: api.GrpcMethodMeta.ServiceName,
-					MethodName:  api.GrpcMethodMeta.MethodName,
-				},
-			})
-		}
-		log.Println("apis:", apis)
-		newServices.Add(service.ID, &ServiceBO{
-			ServicePOId: service.ID,
-			Prefix:      service.Prefix,
-			Name:        service.Name,
-			Protocol:    service.Protocol,
-			Addresses:   addresses,
-			APIs:        apis,
-			curAddress:  0,
-			Available:   service.Available,
-		})
-
+		newServices.Add(service.ID, buildServiceBO(service, beats[service.ID]))
 		newPrefixes.Add(service.Prefix, &Prefix{
 			Name:      service.Prefix,
 			ServiceId: service.ID,
 		})
 	}
-	log.Println("newServices:", newServices)
-	log.Println("newPrefixes:", newPrefixes)
 
 	g.RWMutex.Lock()
 	g.Services = newServices
 	g.Prefixes = newPrefixes
-	val, ok := g.Services.Get(3)
-	if ok {
-		log.Println("flush gateway success!!!!!!!!", val)
-	} else {
-		log.Println("flush gateway success!!!!!!!!, but service 3 not found")
-	}
-
 	g.RWMutex.Unlock()
+	log.Printf("[gateway] FlushGateway 完成: %d 个服务", newServices.Size())
+}
 
+// SyncAllAPIsFromDB 仅刷新各服务内存中的 API 列表（轻量定时同步用）。
+func (g *Gateway) SyncAllAPIsFromDB() {
+	if g == nil {
+		return
+	}
+	g.RWMutex.RLock()
+	services := make([]*ServiceBO, 0, len(g.Services.List))
+	for _, s := range g.Services.List {
+		if s != nil {
+			services = append(services, s)
+		}
+	}
+	g.RWMutex.RUnlock()
+
+	for _, s := range services {
+		n := SyncServiceAPIsFromDB(s.ServicePOId, s.Name)
+		if n > 0 {
+			log.Printf("[gateway] 同步 API 缓存: %s (%d 条)", s.Name, n)
+		}
+	}
 }
 
 //增加服务健康检查

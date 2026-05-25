@@ -12,6 +12,7 @@ import (
 	"github.com/trancecho/mundo-gateway/middle"
 	"github.com/trancecho/mundo-gateway/routes"
 	"log"
+	"time"
 )
 
 func init() {
@@ -32,6 +33,7 @@ func main() {
 	log.Println(viper.GetString("mysql.host") + ":" + viper.GetString("mysql.port"))
 
 	controller.InitGateway()
+	job.StartAPISyncJob(2 * time.Minute)
 	point.InitGlobalPoints()
 
 	// redis

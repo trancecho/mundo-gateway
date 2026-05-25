@@ -126,6 +126,7 @@ func CreateServiceController(c *gin.Context) {
 	} else {
 		b.Addresses = addresses
 	}
+	domain.SyncServiceAPIsFromDB(servicePO.ID, servicePO.Name)
 
 	util.Ok(c, "服务创建成功", gin.H{
 		"service": servicePO,
@@ -299,15 +300,29 @@ func ServiceAliveSignalController(c *gin.Context) {
 	} else {
 		boPtr := domain.GetServiceBO(req.ServiceName)
 		if boPtr == nil {
+			if !domain.ReloadServiceByName(req.ServiceName) {
+				util.ServerError(c, 200, "服务心跳失败")
+				return
+			}
+			boPtr = domain.GetServiceBO(req.ServiceName)
+		}
+		if boPtr == nil {
 			util.ServerError(c, 200, "服务心跳失败")
 			return
 		}
 		if boPtr.GetAddressBO(req.Address) == nil {
+			if !domain.ReloadServiceByName(req.ServiceName) {
+				util.ServerError(c, 300, "服务地址不存在")
+				return
+			}
+			boPtr = domain.GetServiceBO(req.ServiceName)
+		}
+		addrBO := boPtr.GetAddressBO(req.Address)
+		if addrBO == nil {
 			util.ServerError(c, 300, "服务地址不存在")
 			return
 		}
-		// 更新服务的心跳时间
-		boPtr.GetAddressBO(req.Address).LastBeat = time.Now()
+		addrBO.LastBeat = time.Now()
 		log.Println("服务心跳成功", req.Address, req.ServiceName)
 	}
 }

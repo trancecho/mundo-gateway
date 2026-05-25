@@ -149,10 +149,8 @@ func UnregisterServiceService(name string, address string) bool {
 		return false
 	}
 
-	// 更新内存中的数据（只增量刷新当前 service）
-	GatewayGlobal.FlushGateway()
+	RemoveAddressFromMemory(servicePO.Name, address)
 
-	// 日志记录
 	log.Println("服务地址删除成功:", servicePO.Name, address)
 	return true
 }
