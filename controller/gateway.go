@@ -3,6 +3,7 @@ package controller
 import (
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/trancecho/mundo-gateway/domain"
@@ -13,8 +14,9 @@ func HandleRequestController(c *gin.Context) {
 	path := c.Request.URL.Path
 	method := c.Request.Method
 
-	pathParts := splitPathParts(path)
-	if len(pathParts) < 3 {
+	// 例如 /timerme/api/foo -> prefix=/timerme, path=/api/foo
+	pathParts := strings.SplitN(path, "/", 3)
+	if len(pathParts) < 3 || pathParts[1] == "" || pathParts[2] == "" {
 		util.ClientError(c, 100, "路径不合法")
 		return
 	}
@@ -66,25 +68,6 @@ func HandleRequestController(c *gin.Context) {
 	default:
 		util.ServerError(c, 4, "未知协议")
 	}
-}
-
-func splitPathParts(path string) []string {
-	// 与 strings.SplitN(path, "/", 3) 等价，避免额外 import
-	if len(path) == 0 || path[0] != '/' {
-		return nil
-	}
-	first := 1
-	for first < len(path) && path[first] != '/' {
-		first++
-	}
-	if first >= len(path) {
-		return []string{"", path[1:first]}
-	}
-	second := first + 1
-	for second < len(path) && path[second] != '/' {
-		second++
-	}
-	return []string{"", path[1:first], path[second:]}
 }
 
 func InitGateway() {
