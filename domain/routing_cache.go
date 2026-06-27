@@ -129,15 +129,21 @@ func GetServiceByPrefix(prefix string) *ServiceBO {
 	return nil
 }
 
-// ReloadServiceByName 按服务名从 DB 载入到内存（心跳恢复用）。
+// ReloadServiceByName 按服务名从 DB 载入到内存（心跳恢复用）
 func ReloadServiceByName(name string) bool {
 	if GatewayGlobal == nil {
 		return false
 	}
 	var servicePO po.Service
-	if err := GatewayGlobal.DB.Where("name = ? AND available = ?", name, true).
+	if err := GatewayGlobal.DB.Where("name = ?", name).
 		First(&servicePO).Error; err != nil {
 		return false
+	}
+	// 如果服务被标记为不可用（如心跳超时自动下线），心跳到达时自动复活
+	if !servicePO.Available {
+		GatewayGlobal.DB.Model(&po.Service{}).Where("id = ?", servicePO.ID).
+			Update("available", true)
+		servicePO.Available = true
 	}
 	return ReloadServiceIntoGateway(servicePO.ID)
 }
