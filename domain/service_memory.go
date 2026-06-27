@@ -79,7 +79,7 @@ func RemoveAddressFromMemory(serviceName, address string) {
 	log.Println("[gateway] 服务无可用地址，已从内存卸载:", serviceName)
 }
 
-// ReloadServiceIntoGateway 将单个可用服务从 DB 载入或更新到内存。
+// ReloadServiceIntoGateway 将单个服务从 DB 载入或更新到内存。
 func ReloadServiceIntoGateway(serviceID int64) bool {
 	if GatewayGlobal == nil {
 		return false
@@ -87,7 +87,7 @@ func ReloadServiceIntoGateway(serviceID int64) bool {
 	var servicePO po.Service
 	err := GatewayGlobal.DB.Preload("Addresses").
 		Preload("APIs.GrpcMethodMeta").
-		Where("id = ? AND available = ?", serviceID, true).
+		Where("id = ?", serviceID).
 		First(&servicePO).Error
 	if err != nil {
 		return false
