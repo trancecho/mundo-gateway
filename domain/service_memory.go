@@ -79,6 +79,48 @@ func RemoveAddressFromMemory(serviceName, address string) {
 	log.Println("[gateway] 服务无可用地址，已从内存卸载:", serviceName)
 }
 
+// RecoverOrAddAddress 心跳到达时，若地址不在内存中（可能因之前下线被软删除），
+// 从 DB 恢复或新建地址记录，并加入内存 ServiceBO。
+func RecoverOrAddAddress(bo *ServiceBO, address string) bool {
+	if bo == nil || GatewayGlobal == nil {
+		return false
+	}
+	// 尝试查找已存在但被软删除的地址记录
+	var addrPO po.Address
+	err := GatewayGlobal.DB.Unscoped().
+		Where("service_id = ? AND address = ?", bo.ServicePOId, address).
+		First(&addrPO).Error
+	if err == nil {
+		// 记录存在（可能被软删除），恢复或确保未删除
+		if addrPO.DeletedAt.Valid {
+			GatewayGlobal.DB.Unscoped().
+				Model(&addrPO).
+				Update("deleted_at", nil)
+		}
+	} else {
+		// 记录不存在，新建
+		addrPO = po.Address{
+			ServiceId: bo.ServicePOId,
+			Address:   address,
+		}
+		if err := GatewayGlobal.DB.Create(&addrPO).Error; err != nil {
+			log.Println("[gateway] 创建心跳地址失败:", err)
+			return false
+		}
+	}
+
+	// 加入内存
+	GatewayGlobal.RWMutex.Lock()
+	bo.Addresses.Add(addrPO.ID, &Address{
+		Address:   address,
+		LastBeat:  time.Now(),
+		IsHealthy: true,
+	})
+	GatewayGlobal.RWMutex.Unlock()
+	log.Printf("[gateway] 心跳恢复地址: %s -> %s", bo.Name, address)
+	return true
+}
+
 // ReloadServiceIntoGateway 将单个服务从 DB 载入或更新到内存。
 func ReloadServiceIntoGateway(serviceID int64) bool {
 	if GatewayGlobal == nil {

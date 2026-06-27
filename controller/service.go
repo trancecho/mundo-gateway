@@ -310,14 +310,15 @@ func ServiceAliveSignalController(c *gin.Context) {
 			util.ServerError(c, 200, "服务心跳失败")
 			return
 		}
-		if boPtr.GetAddressBO(req.Address) == nil {
-			if !domain.ReloadServiceByName(req.ServiceName) {
+		addrBO := boPtr.GetAddressBO(req.Address)
+		if addrBO == nil {
+			// 心跳地址不在内存中（可能因之前下线被软删除），尝试从 DB 恢复或新建
+			if !domain.RecoverOrAddAddress(boPtr, req.Address) {
 				util.ServerError(c, 300, "服务地址不存在")
 				return
 			}
-			boPtr = domain.GetServiceBO(req.ServiceName)
+			addrBO = boPtr.GetAddressBO(req.Address)
 		}
-		addrBO := boPtr.GetAddressBO(req.Address)
 		if addrBO == nil {
 			util.ServerError(c, 300, "服务地址不存在")
 			return
